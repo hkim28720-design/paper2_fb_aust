@@ -1,0 +1,131 @@
+\begin{table}[htbp]\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Placebo: 2SLS with Contemporaneous Outcome (Y$\_t$)}
+\begin{tabular}{l*{6}{c}}
+\toprule
+                    &\multicolumn{1}{c}{(1)}&\multicolumn{1}{c}{(2)}&\multicolumn{1}{c}{(3)}&\multicolumn{1}{c}{(4)}&\multicolumn{1}{c}{(5)}&\multicolumn{1}{c}{(6)}\\
+                    &\multicolumn{1}{c}{TSE Cut}&\multicolumn{1}{c}{Education}&\multicolumn{1}{c}{Child SC}&\multicolumn{1}{c}{Adult SC}&\multicolumn{1}{c}{Health}&\multicolumn{1}{c}{Housing}\\
+\midrule
+Treatment: total service spending cut (t vs t−1)&       0.665         &                     &                     &                     &                     &                     \\
+                    &     (0.406)         &                     &                     &                     &                     &                     \\
+\addlinespace
+East                &       0.114         &       0.431         &       0.441         &       0.105         &       0.361         &      0.0544         \\
+                    &     (0.223)         &     (0.283)         &     (0.379)         &     (0.251)         &     (0.227)         &     (0.225)         \\
+\addlinespace
+East Midlands (England)&      -0.413         &      -0.190         &      -0.506         &      -0.538         &      -0.344         &      -0.500         \\
+                    &     (0.307)         &     (0.876)         &     (0.552)         &     (0.650)         &     (0.570)         &     (0.327)         \\
+\addlinespace
+London              &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+North East (England)&     -0.0372         &     -0.0782         &      -0.407         &       0.167         &       0.139         &     -0.0646         \\
+                    &     (0.296)         &     (0.600)         &     (0.519)         &     (0.341)         &     (0.337)         &     (0.377)         \\
+\addlinespace
+North West (England)&       0.376\sym{**} &       0.193         &       0.257         &       0.249         &       0.408\sym{*}  &       0.249         \\
+                    &     (0.186)         &     (0.386)         &     (0.310)         &     (0.238)         &     (0.211)         &     (0.201)         \\
+\addlinespace
+South East (England)&       0.246         &       0.290         &       0.338         &       0.211         &       0.309\sym{*}  &       0.176         \\
+                    &     (0.204)         &     (0.215)         &     (0.384)         &     (0.216)         &     (0.175)         &     (0.216)         \\
+\addlinespace
+South West (England)&       0.154         &       0.406         &       0.400         &       0.267         &       0.404         &      0.0954         \\
+                    &     (0.212)         &     (0.438)         &     (0.341)         &     (0.261)         &     (0.287)         &     (0.230)         \\
+\addlinespace
+West Midlands (England)&      -0.127         &      -0.788         &      -0.869         &      -0.685         &      -0.654         &      -0.201         \\
+                    &     (0.400)         &     (0.881)         &     (0.721)         &     (0.752)         &     (0.791)         &     (0.408)         \\
+\addlinespace
+Yorkshire and The Humber&     -0.0385         &      -0.233         &      -0.461         &      -0.219         &      -0.116         &      -0.213         \\
+                    &     (0.208)         &     (0.448)         &     (0.349)         &     (0.289)         &     (0.270)         &     (0.252)         \\
+\addlinespace
+log(population)     &       0.578\sym{***}&       0.805\sym{***}&       0.708\sym{***}&       0.799\sym{***}&       0.861\sym{***}&       0.572\sym{***}\\
+                    &     (0.122)         &     (0.286)         &     (0.257)         &     (0.189)         &     (0.298)         &     (0.133)         \\
+\addlinespace
+Council Tax Requirement per capita (real pc)&     -0.0143         &       0.472         &      -1.377         &      -0.197         &      -0.229         &     -0.0232         \\
+                    &     (0.416)         &     (1.569)         &     (1.228)         &     (0.463)         &     (0.467)         &     (0.386)         \\
+\addlinespace
+Δ asinh total service pc (2018 − 2010)&      -0.434         &                     &                     &                     &                     &                     \\
+                    &     (0.484)         &                     &                     &                     &                     &                     \\
+\addlinespace
+IMD 2019 average score (higher = more deprived)&      0.0229\sym{**} &      0.0148         &     0.00441         &      0.0177\sym{*}  &      0.0102         &      0.0208\sym{*}  \\
+                    &    (0.0103)         &    (0.0127)         &    (0.0160)         &   (0.00991)         &    (0.0127)         &    (0.0108)         \\
+\addlinespace
+Financial Year=2010 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2011 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2012 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2013 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2014 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2015 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2016 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2017 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2018 &      -0.464\sym{***}&      -0.735\sym{*}  &      -0.238         &      -0.525\sym{***}&      -0.544\sym{***}&      -0.512\sym{***}\\
+                    &    (0.0734)         &     (0.380)         &     (0.303)         &     (0.126)         &     (0.170)         &    (0.0886)         \\
+\addlinespace
+Financial Year=2019 &      -0.148         &      -0.654         &      0.0456         &      -0.397\sym{**} &      -0.386\sym{***}&      -0.331\sym{***}\\
+                    &     (0.128)         &     (0.443)         &     (0.358)         &     (0.183)         &     (0.132)         &    (0.0775)         \\
+\addlinespace
+Financial Year=2020 &       0.223         &      -0.781         &       1.935         &     -0.0742         &      -0.865         &      -0.257         \\
+                    &     (0.200)         &     (0.842)         &     (1.405)         &     (0.261)         &     (1.149)         &     (0.277)         \\
+\addlinespace
+Financial Year=2021 &       0.314\sym{***}&       0.449         &       0.519         &       0.231         &      -0.705         &       0.210\sym{***}\\
+                    &     (0.102)         &     (0.383)         &     (0.359)         &     (0.222)         &     (1.396)         &    (0.0802)         \\
+\addlinespace
+Financial Year=2022 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Financial Year=2023 &           0         &           0         &           0         &           0         &           0         &           0         \\
+                    &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         &         (.)         \\
+\addlinespace
+Treatment: education share cut&                     &       1.804         &                     &                     &                     &                     \\
+                    &                     &     (2.325)         &                     &                     &                     &                     \\
+\addlinespace
+Δ asinh education pc (2018 − 2010)&                     &       0.781         &                     &                     &                     &                     \\
+                    &                     &     (0.507)         &                     &                     &                     &                     \\
+\addlinespace
+Treatment: child SC share cut&                     &                     &      -4.072         &                     &                     &                     \\
+                    &                     &                     &     (2.644)         &                     &                     &                     \\
+\addlinespace
+Δ asinh child SC pc (2018 − 2011)&                     &                     &       0.300         &                     &                     &                     \\
+                    &                     &                     &     (1.874)         &                     &                     &                     \\
+\addlinespace
+Treatment: adult SC share cut&                     &                     &                     &      -0.389         &                     &                     \\
+                    &                     &                     &                     &     (1.452)         &                     &                     \\
+\addlinespace
+Δ asinh adult SC pc (2018 − 2011)&                     &                     &                     &       3.197         &                     &                     \\
+                    &                     &                     &                     &     (2.554)         &                     &                     \\
+\addlinespace
+Treatment: public health share cut&                     &                     &                     &                     &      -1.684         &                     \\
+                    &                     &                     &                     &                     &     (2.651)         &                     \\
+\addlinespace
+Δ asinh health pc (2018 − 2013)&                     &                     &                     &                     &       3.372         &                     \\
+                    &                     &                     &                     &                     &     (8.010)         &                     \\
+\addlinespace
+Treatment: housing share cut&                     &                     &                     &                     &                     &       1.124         \\
+                    &                     &                     &                     &                     &                     &     (1.631)         \\
+\addlinespace
+Δ asinh housing pc (2018 − 2010)&                     &                     &                     &                     &                     &      -5.091\sym{***}\\
+                    &                     &                     &                     &                     &                     &     (1.848)         \\
+\addlinespace
+Constant            &       1.217         &      -1.773         &       2.185         &      -0.427         &    -0.00601         &       1.356         \\
+                    &     (1.484)         &     (4.994)         &     (3.045)         &     (1.981)         &     (2.173)         &     (1.883)         \\
+\midrule
+Observations        &        1093         &         503         &         523         &         582         &         528         &        1059         \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize Standard errors in parentheses}\\
+\multicolumn{7}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}
+\end{table}

@@ -1,0 +1,24 @@
+\begin{table}[htbp]\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Balance Table by Total Spending Cut Status}
+\begin{tabular}{l*{3}{cccc}}
+\toprule
+                    &\multicolumn{2}{c}{(1)}  &\multicolumn{2}{c}{(2)}  &\multicolumn{2}{c}{(3)}  \\
+                    &\multicolumn{2}{c}{Cut}  &\multicolumn{2}{c}{No cut}&\multicolumn{2}{c}{Difference}\\
+                    &        mean&          sd&        mean&          sd&           b&           t\\
+\midrule
+log population      &      12.033&       0.548&      12.057&       0.562&       0.025&        0.74\\
+IMD 2019 average score&      19.847&       8.312&      19.820&       8.055&      -0.027&       -0.05\\
+Council tax requirement per capita, real&       0.281&       0.221&       0.298&       0.231&       0.017&        1.29\\
+Change in asinh TSE per capita, 2010 to 2018&      -0.170&       0.136&      -0.176&       0.141&      -0.006&       -0.76\\
+Change in asinh budget gap since 2018 (Z1)&      -0.022&       0.139&      -0.072&       0.165&      -0.050&       -5.44\\
+Change in asinh reserves since 2018 (Z2)&      -0.001&       0.026&       0.001&       0.027&       0.002&        1.41\\
+Grant cut since 2018, flipped (Z3)&       0.007&       0.075&       0.028&       0.074&       0.021&        4.73\\
+\midrule
+Observations        &         517&            &         604&            &        1121&            \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize Cut: LADs with $\Delta\text{asinh}(\text{TSE}\_{pc}) < 0$ in a given year.}\\
+\multicolumn{7}{l}{\footnotesize Difference column reports mean(Cut) $-$ mean(No cut) with t-statistics.}\\
+\multicolumn{7}{l}{\footnotesize Standard errors not adjusted for clustering.}\\
+\end{tabular}
+\end{table}

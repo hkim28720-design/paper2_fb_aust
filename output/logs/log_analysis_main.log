@@ -1,0 +1,3957 @@
+---------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/kk/Desktop/paper2_fb_aust/output/logs/log_analysi
+> s_main.log
+  log type:  text
+ opened on:  29 Mar 2026, 16:53:26
+
+. 
+. *==================================================================
+> =============
+. * 1. Load source panel and declare panel structure
+. *==================================================================
+> =============
+. use "$proc/PANEL_2007_2023_harmonized_processed_v2.dta", clear
+
+. 
+. capture drop onscode_encode
+
+. capture drop itl121nm_encode
+
+. encode onscode,  gen(onscode_encode)
+
+. encode itl121nm, gen(itl121nm_encode)
+
+. 
+. xtset onscode_encode year
+
+Panel variable: onscode_encode (unbalanced)
+ Time variable: year, 2007 to 2023, but with gaps
+         Delta: 1 unit
+
+. keep if inrange(year, 2010, 2023)
+(1,019 observations deleted)
+
+. 
+. *==================================================================
+> =============
+. * 2. Outcomes
+. *==================================================================
+> =============
+. 
+. * Main outcome: next-year parcels
+. capture drop f1_countparcels
+
+. gen double f1_countparcels = F.countparcels
+(3,580 missing values generated)
+
+. replace f1_countparcels = . if !inrange(year, 2018, 2022)
+(222 real changes made, 222 to missing)
+
+. 
+. capture drop asinh_f1_countparcels
+
+. gen double asinh_f1_countparcels = asinh(f1_countparcels)
+(3,802 missing values generated)
+
+. label var asinh_f1_countparcels "asinh food parcels in t+1"
+
+. 
+. * Placebo: contemporaneous outcome
+. capture drop asinh_countparcels_t
+
+. gen double asinh_countparcels_t = asinh(countparcels) if inrange(ye
+> ar, 2018, 2022)
+(3,809 missing values generated)
+
+. label var asinh_countparcels_t "asinh food parcels in t"
+
+. 
+. * Timing robustness: two-year lead
+. capture drop f2_countparcels
+
+. gen double f2_countparcels = F2.countparcels
+(3,580 missing values generated)
+
+. replace f2_countparcels = . if !inrange(year, 2018, 2021)
+(443 real changes made, 443 to missing)
+
+. 
+. capture drop asinh_f2_countparcels
+
+. gen double asinh_f2_countparcels = asinh(f2_countparcels)
+(4,023 missing values generated)
+
+. label var asinh_f2_countparcels "asinh food parcels in t+2"
+
+. 
+. * Functional form robustness: ln(1 + Y)
+. capture drop ln1_f1_countparcels
+
+. gen double ln1_f1_countparcels = ln(f1_countparcels + 1) if f1_coun
+> tparcels < .
+(3,802 missing values generated)
+
+. label var ln1_f1_countparcels "ln(1 + food parcels in t+1)"
+
+. 
+. *==================================================================
+> =============
+. * 3. Core controls
+. *==================================================================
+> =============
+. capture drop ln_population
+
+. gen double ln_population = ln(population) if population > 0
+(831 missing values generated)
+
+. label var ln_population "log population"
+
+. 
+. capture drop imd2019_score
+
+. bysort onscode_encode: egen double imd2019_score = max(cond(year ==
+>  2019, imdaveragescore, .))
+(665 missing values generated)
+
+. 
+. capture drop imd_any
+
+. bysort onscode_encode: egen double imd_any = max(imdaveragescore)
+(665 missing values generated)
+
+. replace imd2019_score = imd_any if missing(imd2019_score)
+(0 real changes made)
+
+. drop imd_any
+
+. label var imd2019_score "IMD 2019 average score"
+
+. 
+. label var rs_ctr_real_pc "Council tax requirement per capita, real"
+
+. 
+. *==================================================================
+> =============
+. * 4. Main treatment: continuous aggregate austerity
+. *    A_it = -[asinh(TSE_pc_it) - asinh(TSE_pc_i,t-1)]
+. *==================================================================
+> =============
+. capture drop asinh_tse_pc
+
+. gen double asinh_tse_pc = asinh(rs_tse_real_pc) if rs_tse_real_pc <
+>  .
+(831 missing values generated)
+
+. label var asinh_tse_pc "asinh total service expenditure per capita"
+
+. 
+. capture drop d_asinh_tse_pc
+
+. gen double d_asinh_tse_pc = asinh_tse_pc - L.asinh_tse_pc ///
+>     if asinh_tse_pc < . & L.asinh_tse_pc < .
+(1,127 missing values generated)
+
+. label var d_asinh_tse_pc "Change in asinh TSE per capita"
+
+. 
+. capture drop austerity_tse
+
+. gen double austerity_tse = -d_asinh_tse_pc if d_asinh_tse_pc < .
+(1,127 missing values generated)
+
+. label var austerity_tse "Aggregate austerity intensity"
+
+. 
+. * Log version for functional form robustness
+. capture drop ln_tse_pc
+
+. gen double ln_tse_pc = ln(rs_tse_real_pc) if rs_tse_real_pc > 0
+(851 missing values generated)
+
+. 
+. capture drop d_ln_tse_pc
+
+. gen double d_ln_tse_pc = ln_tse_pc - L.ln_tse_pc ///
+>     if ln_tse_pc < . & L.ln_tse_pc < .
+(1,150 missing values generated)
+
+. 
+. capture drop austerity_tse_ln
+
+. gen double austerity_tse_ln = -d_ln_tse_pc if d_ln_tse_pc < .
+(1,150 missing values generated)
+
+. label var austerity_tse_ln "Aggregate austerity intensity, log vers
+> ion"
+
+. 
+. * Binary cut indicator (appendix comparison only)
+. capture drop treat_tse
+
+. gen byte treat_tse = (d_asinh_tse_pc < 0) if d_asinh_tse_pc < .
+(1,127 missing values generated)
+
+. label var treat_tse "Indicator for total spending cut"
+
+. 
+. *==================================================================
+> =============
+. * 5. Instruments
+. *==================================================================
+> =============
+. 
+. * Z1: budget gap relative to 2018
+. capture drop budgetgap_tse_real_pc
+
+. gen double budgetgap_tse_real_pc = ra_tse_real_pc - rs_tse_real_pc 
+> ///
+>     if ra_tse_real_pc < . & rs_tse_real_pc < .
+(3,167 missing values generated)
+
+. label var budgetgap_tse_real_pc "Budget gap per capita, RA minus RS
+> "
+
+. 
+. capture drop asinh_budgetgap_t
+
+. gen double asinh_budgetgap_t = asinh(budgetgap_tse_real_pc) if budg
+> etgap_tse_real_pc < .
+(3,167 missing values generated)
+
+. 
+. capture drop asinh_budgetgap_2018
+
+. gen double asinh_budgetgap_2018 = asinh_budgetgap_t if year == 2018
+(4,631 missing values generated)
+
+. 
+. capture drop base2018_asinh_budgetgap
+
+. bysort onscode_encode: egen double base2018_asinh_budgetgap = max(a
+> sinh_budgetgap_2018)
+(835 missing values generated)
+
+. 
+. capture drop d_asinh_budgetgap
+
+. gen double d_asinh_budgetgap = asinh_budgetgap_t - base2018_asinh_b
+> udgetgap ///
+>     if asinh_budgetgap_t < . & base2018_asinh_budgetgap < .
+(3,171 missing values generated)
+
+. label var d_asinh_budgetgap "Change in asinh budget gap since 2018 
+> (Z1)"
+
+. 
+. drop asinh_budgetgap_2018                             /* intermedia
+> te; no longer needed */
+
+. 
+. * Z2: reserves relative to 2018
+. capture drop reserveapr_pc_2018
+
+. gen double reserveapr_pc_2018 = rs_reserveapr_real_pc if year == 20
+> 18
+(4,631 missing values generated)
+
+. 
+. capture drop base2018_reserveapr_pc
+
+. bysort onscode_encode: egen double base2018_reserveapr_pc = max(res
+> erveapr_pc_2018)
+(835 missing values generated)
+
+. 
+. capture drop d_reserveapr_asinh
+
+. gen double d_reserveapr_asinh = asinh(rs_reserveapr_real_pc) - asin
+> h(base2018_reserveapr_pc) ///
+>     if rs_reserveapr_real_pc < . & base2018_reserveapr_pc < .
+(835 missing values generated)
+
+. label var d_reserveapr_asinh "Change in asinh reserves since 2018 (
+> Z2)"
+
+. 
+. drop reserveapr_pc_2018                               /* intermedia
+> te; no longer needed */
+
+. 
+. * Z3: grant cut since 2018
+. capture drop totgrant_pc
+
+. gen double totgrant_pc = rs_grant_rsg_real_pc + rs_grant_inaef_real
+> _pc ///
+>     if rs_grant_rsg_real_pc < . & rs_grant_inaef_real_pc < .
+(831 missing values generated)
+
+. label var totgrant_pc "Total grants per capita, real"
+
+. 
+. capture drop asinh_totgrant
+
+. gen double asinh_totgrant = asinh(totgrant_pc) if totgrant_pc < .
+(831 missing values generated)
+
+. 
+. capture drop asinh_totgrant_2018
+
+. gen double asinh_totgrant_2018 = asinh_totgrant if year == 2018
+(4,631 missing values generated)
+
+. 
+. capture drop base2018_asinh_grant
+
+. bysort onscode_encode: egen double base2018_asinh_grant = max(asinh
+> _totgrant_2018)
+(835 missing values generated)
+
+. 
+. capture drop d_asinh_grant
+
+. gen double d_asinh_grant = asinh_totgrant - base2018_asinh_grant //
+> /
+>     if asinh_totgrant < . & base2018_asinh_grant < .
+(835 missing values generated)
+
+. 
+. capture drop grantcut_asinh_flipped
+
+. gen double grantcut_asinh_flipped = -d_asinh_grant if d_asinh_grant
+>  < .
+(835 missing values generated)
+
+. label var grantcut_asinh_flipped "Grant cut since 2018, flipped (Z3
+> )"
+
+. 
+. drop asinh_totgrant_2018                              /* intermedia
+> te; no longer needed */
+
+. 
+. *==================================================================
+> =============
+. * 6. Pre-2018 long-run squeeze control
+. *    NOTE: This variable is TIME-INVARIANT within a LAD.
+. *    It is used only in the balance table and descriptive stats.
+. *    It is excluded from FE and IV-FE specifications to avoid
+. *    automatic omission due to collinearity with unit FE.
+. *==================================================================
+> =============
+. capture drop TSE2010
+
+. capture drop TSE2018
+
+. bysort onscode_encode: egen double TSE2010 = max(cond(year == 2010,
+>  rs_tse_real_pc, .))
+(835 missing values generated)
+
+. bysort onscode_encode: egen double TSE2018 = max(cond(year == 2018,
+>  rs_tse_real_pc, .))
+(835 missing values generated)
+
+. 
+. capture drop d_asinhTSE_2010_2018
+
+. gen double d_asinhTSE_2010_2018 = asinh(TSE2018) - asinh(TSE2010) /
+> //
+>     if TSE2018 > 0 & TSE2010 > 0
+(835 missing values generated)
+
+. label var d_asinhTSE_2010_2018 "Change in asinh TSE per capita, 201
+> 0 to 2018"
+
+. 
+. drop TSE2010 TSE2018                                  /* intermedia
+> te; no longer needed */
+
+. 
+. *==================================================================
+> =============
+. * 7. Service-share variables (appendix only)
+. *==================================================================
+> =============
+. 
+. capture drop share_education d_share_education
+
+. gen double share_education = rs_education_real_pc / rs_tse_real_pc 
+> ///
+>     if rs_tse_real_pc > 0 & rs_education_real_pc < .
+(851 missing values generated)
+
+. gen double d_share_education = share_education - L.share_education 
+> ///
+>     if share_education < . & L.share_education < .
+(1,150 missing values generated)
+
+. 
+. capture drop share_childsc d_share_childsc
+
+. gen double share_childsc = rs_childSC_real_pc / rs_tse_real_pc ///
+>     if rs_tse_real_pc > 0 & rs_childSC_real_pc < .
+(851 missing values generated)
+
+. gen double d_share_childsc = share_childsc - L.share_childsc ///
+>     if share_childsc < . & L.share_childsc < .
+(1,150 missing values generated)
+
+. 
+. capture drop share_adultsc d_share_adultsc
+
+. gen double share_adultsc = rs_adultSC_real_pc / rs_tse_real_pc ///
+>     if rs_tse_real_pc > 0 & rs_adultSC_real_pc < .
+(851 missing values generated)
+
+. gen double d_share_adultsc = share_adultsc - L.share_adultsc ///
+>     if share_adultsc < . & L.share_adultsc < .
+(1,150 missing values generated)
+
+. 
+. capture drop share_health d_share_health
+
+. gen double share_health = rs_health_real_pc / rs_tse_real_pc ///
+>     if rs_tse_real_pc > 0 & rs_health_real_pc < .
+(851 missing values generated)
+
+. gen double d_share_health = share_health - L.share_health ///
+>     if share_health < . & L.share_health < .
+(1,150 missing values generated)
+
+. 
+. capture drop share_housing d_share_housing
+
+. gen double share_housing = rs_housing_real_pc / rs_tse_real_pc ///
+>     if rs_tse_real_pc > 0 & rs_housing_real_pc < .
+(851 missing values generated)
+
+. gen double d_share_housing = share_housing - L.share_housing ///
+>     if share_housing < . & L.share_housing < .
+(1,150 missing values generated)
+
+. 
+. *==================================================================
+> =============
+. * 8. Estimation samples
+. *==================================================================
+> =============
+. capture drop sample_main
+
+. gen byte sample_main = inrange(year, 2018, 2022) ///
+>     & !missing(asinh_f1_countparcels, austerity_tse, d_asinh_budget
+> gap, ln_population)
+
+. label var sample_main "Main estimation sample"
+
+. 
+. capture drop sample_no_covid
+
+. gen byte sample_no_covid = sample_main == 1 & !inlist(year, 2020, 2
+> 021)
+
+. label var sample_no_covid "Main sample excluding 2020 and 2021"
+
+. 
+. *==================================================================
+> =============
+. * 9. Sample flow and singleton documentation
+. *==================================================================
+> =============
+. di as txt _n "=========================================="
+
+==========================================
+
+. di as txt "SAMPLE FLOW"
+SAMPLE FLOW
+
+. di as txt "=========================================="
+==========================================
+
+. count
+  4,923
+
+. di as txt "Full panel, 2010 to 2023:              " r(N)
+Full panel, 2010 to 2023:              4923
+
+. count if inrange(year, 2018, 2022)
+  1,777
+
+. di as txt "Years 2018 to 2022:                    " r(N)
+Years 2018 to 2022:                    1777
+
+. count if sample_main == 1
+  1,121
+
+. di as txt "Main estimation sample:                " r(N)
+Main estimation sample:                1121
+
+. 
+. * Document singleton clusters for AER transparency
+. * Singletons = LADs observed in only 1 year within estimation windo
+> w
+. * These are automatically dropped by FE estimators (xtreg, reghdfe,
+>  ivreghdfe)
+. tempvar nyears
+
+. bysort onscode_encode: egen `nyears' = total(sample_main) if sample
+> _main == 1
+(3,802 missing values generated)
+
+. count if sample_main == 1 & `nyears' == 1
+  5
+
+. local n_singleton = r(N)
+
+. count if sample_main == 1 & `nyears' > 1
+  1,116
+
+. local n_effective = r(N)
+
+. di as txt "Singleton cluster observations:         " `n_singleton'
+Singleton cluster observations:         5
+
+. di as txt "Effective N after singleton drops:      " `n_effective'
+Effective N after singleton drops:      1116
+
+. 
+. count if sample_main == 1 & !missing(d_asinh_budgetgap)
+  1,121
+
+. di as txt "Main sample with Z1 observed:          " r(N)
+Main sample with Z1 observed:          1121
+
+. count if sample_main == 1 & !missing(d_asinh_budgetgap, d_reserveap
+> r_asinh)
+  1,121
+
+. di as txt "Main sample with Z1 and Z2 observed:   " r(N)
+Main sample with Z1 and Z2 observed:   1121
+
+. count if sample_main == 1 & !missing(d_asinh_budgetgap, d_reserveap
+> r_asinh, grantcut_asinh_flipped)
+  1,121
+
+. di as txt "Main sample with Z1, Z2, Z3 observed:  " r(N)
+Main sample with Z1, Z2, Z3 observed:  1121
+
+. count if sample_no_covid == 1
+  672
+
+. di as txt "Main sample excluding 2020 and 2021:   " r(N)
+Main sample excluding 2020 and 2021:   672
+
+. di as txt "=========================================="
+==========================================
+
+. 
+. *==================================================================
+> =============
+. * 10. Descriptive statistics (Table 1)
+. *==================================================================
+> =============
+. 
+. * Use estpost summarize with ,detail to compute percentiles
+. estpost summarize ///
+>     asinh_f1_countparcels ///
+>     austerity_tse ///
+>     austerity_tse_ln ///
+>     d_asinh_budgetgap ///
+>     d_reserveapr_asinh ///
+>     grantcut_asinh_flipped ///
+>     ln_population ///
+>     imd2019_score ///
+>     rs_ctr_real_pc ///
+>     if sample_main == 1, detail
+
+             |  e(count)   e(sum_w)    e(mean)     e(Var)      e(sd) 
+-------------+-------------------------------------------------------
+asinh_f1_c~s |      1121       1121   9.209126    1.44221   1.200921 
+austerity_~e |      1121       1121  -.0042952   .0063718   .0798236 
+austerity_~n |      1117       1117  -.0184066   .0411534   .2028629 
+d_asinh_bu~p |      1121       1121  -.0486302     .02421   .1555956 
+d_reservea~h |      1121       1121   .0003259   .0007197   .0268279 
+grantcut_a~d |      1121       1121   .0187531   .0055884   .0747554 
+ln_populat~n |      1121       1121   12.04606   .3086423   .5555559 
+imd2019_sc~e |      1106       1106   19.83229   66.76468   8.170965 
+rs_ctr_rea~c |      1121       1121   .2899424   .0512982   .2264911 
+
+             | e(skewn~)  e(kurto~)     e(sum)     e(min)     e(max) 
+-------------+-------------------------------------------------------
+asinh_f1_c~s | -2.234744   13.19805   10323.43   .8813736   11.89188 
+austerity_~e | -.5762925   151.9142  -4.814914  -1.097842   1.387486 
+austerity_~n | -4.442487   48.28978  -20.56019  -2.305428   .9956816 
+d_asinh_bu~p | -4.024424   48.84421  -54.51443  -1.660093    1.44913 
+d_reservea~h |   .478656   14.14283   .3653072  -.1798138   .1891224 
+grantcut_a~d |  1.482092   52.40685   21.02224   -.943293   .7170797 
+ln_populat~n |  .4308712   2.870156   13503.63   10.59796   13.95894 
+imd2019_sc~e |  .5811476   2.627406   21934.51      5.544     43.006 
+rs_ctr_rea~c |  .5019272   1.741413   325.0254          0   .8331954 
+
+             |     e(p1)      e(p5)     e(p10)     e(p25)     e(p50) 
+-------------+-------------------------------------------------------
+asinh_f1_c~s |  4.356873   7.276557   8.059592   8.794825   9.362203 
+austerity_~e | -.1358145  -.0744277  -.0475784  -.0212918  -.0023302 
+austerity_~n | -.5557011  -.2627131  -.1608267  -.0622768  -.0058446 
+d_asinh_bu~p | -.5854145  -.2098857  -.1526968  -.0699471   -.013108 
+d_reservea~h | -.0839266  -.0368982  -.0177443  -.0042594          0 
+grantcut_a~d | -.0989109  -.0351904  -.0124972   -.003202          0 
+ln_populat~n |  10.96454   11.29198   11.41436   11.61147   11.94106 
+imd2019_sc~e |     7.494      8.684     10.449     13.225     18.223 
+rs_ctr_rea~c |  .0562245    .068625   .0754468   .0930563   .1234705 
+
+             |    e(p75)     e(p90)     e(p95)     e(p99) 
+-------------+--------------------------------------------
+asinh_f1_c~s |  9.870964   10.39403   10.68529   11.34654 
+austerity_~e |  .0167186   .0394379   .0586449    .135392 
+austerity_~n |  .0452033   .1429031   .2264223   .4138703 
+d_asinh_bu~p |         0   .0175087   .0475447     .18422 
+d_reservea~h |  .0037348    .021853   .0434483    .081184 
+grantcut_a~d |  .0207221   .0870314   .1247127    .237083 
+ln_populat~n |  12.49059   12.76508   12.96385    13.2568 
+imd2019_sc~e |    25.713     31.518     34.504     40.564 
+rs_ctr_rea~c |  .4855031   .6063238   .6836444   .7824062 
+
+. 
+. esttab using "$tables/table1_summary_stats_main.tex", ///
+>     replace booktabs label ///
+>     cells("count mean sd min p50 max") ///
+>     title("Summary Statistics for Main Estimation Sample") ///
+>     addnotes( ///
+>         "Sample: 229 English local authorities, 2018--2022." ///
+>         "Austerity intensity: $A_{it} = -[\text{asinh}(\text{TSE}_{
+> it}) - \text{asinh}(\text{TSE}_{i,t-1})]$." ///
+>         "Positive values indicate spending cuts." ///
+>     )
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> le1_summary_stats_main.tex)
+
+. 
+. *==================================================================
+> =============
+. * 11. Figures
+. *==================================================================
+> =============
+. 
+. * Figure 1. Time-series of food parcels and austerity
+. preserve
+
+.     keep if inrange(year, 2018, 2022)
+(3,146 observations deleted)
+
+.     collapse ///
+>         (mean) mean_parcels = countparcels ///
+>         (mean) mean_austerity = austerity_tse ///
+>         (mean) mean_gap = d_asinh_budgetgap, by(year)
+
+. 
+.     twoway ///
+>         (line mean_parcels year, yaxis(1)) ///
+>         (line mean_austerity year, yaxis(2)), ///
+>         title("Food Parcels and Aggregate Austerity Over Time") ///
+>         xtitle("Year") ///
+>         ytitle("Mean food parcels", axis(1)) ///
+>         ytitle("Mean aggregate austerity", axis(2)) ///
+>         legend(order(1 "Food parcels" 2 "Aggregate austerity"))
+
+.     graph export "$figures/fig1_parcels_austerity_timeseries.png", 
+> replace
+file
+    /Users/kk/Desktop/paper2_fb_aust/output/figures/fig1_parcels_au
+    > sterity_timeseries.png saved as PNG format
+
+. restore
+
+. 
+. * Figure 2. First-stage scatter: Z1 vs treatment
+. preserve
+
+.     keep if sample_main == 1
+(3,802 observations deleted)
+
+.     twoway ///
+>         (scatter austerity_tse d_asinh_budgetgap, msize(vsmall)) //
+> /
+>         (lfit austerity_tse d_asinh_budgetgap), ///
+>         title("Budget Gap and Aggregate Austerity") ///
+>         xtitle("Change in asinh budget gap since 2018") ///
+>         ytitle("Aggregate austerity intensity")
+
+.     graph export "$figures/fig2_firststage_scatter.png", replace
+file
+    /Users/kk/Desktop/paper2_fb_aust/output/figures/fig2_firststage
+    > _scatter.png saved as PNG format
+
+. restore
+
+. 
+. * Figure 3. Outcome distribution
+. preserve
+
+.     keep if sample_main == 1
+(3,802 observations deleted)
+
+.     histogram asinh_f1_countparcels, fraction ///
+>         title("Distribution of Main Outcome") ///
+>         xtitle("asinh food parcels in t+1") ///
+>         ytitle("Fraction")
+(bin=30, start=.88137359, width=.36701696)
+
+.     graph export "$figures/fig3_hist_outcome.png", replace
+file
+    /Users/kk/Desktop/paper2_fb_aust/output/figures/fig3_hist_outco
+    > me.png saved as PNG format
+
+. restore
+
+. 
+. *==================================================================
+> =============
+. * 12. Main text analysis: Fixed Effects (Table 2, cols 1-2)
+. *     NOTE: Time-invariant controls (imd2019_score, d_asinhTSE_2010
+> _2018)
+. *     are excluded because they are perfectly collinear with unit F
+> E.
+. *==================================================================
+> =============
+. 
+. * FE with asinh treatment
+. xtreg asinh_f1_countparcels ///
+>     austerity_tse ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,121
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3103                                         min =  
+>         1
+     Between = 0.1523                                         avg =  
+>       4.8
+     Overall = 0.1859                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     53.47
+corr(u_i, Xb) = -0.2721                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |   -.044832   .1297366    -0.35   0.730    -.3004503   
+>  .2107863
+ln_populat~n |   1.419731   1.419767     1.00   0.318    -1.377618   
+>  4.217079
+rs_ctr_rea~c |  -.1440243   .3059869    -0.47   0.638    -.7469063   
+>  .4588576
+             |
+        year |
+       2019  |   .2342696   .0268142     8.74   0.000     .1814379   
+>  .2871013
+       2020  |   .5139364   .0477292    10.77   0.000     .4198963   
+>  .6079765
+       2021  |   .3558431   .0451496     7.88   0.000     .2668855   
+>  .4448008
+       2022  |   .7063816   .0587681    12.02   0.000     .5905916   
+>  .8221716
+             |
+       _cons |  -8.216139   17.08369    -0.48   0.631    -41.87591   
+>  25.44364
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2593162
+     sigma_e |  .41687141
+         rho |  .90124123   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store fe_main_asinh
+
+. 
+. * FE with log treatment
+. xtreg asinh_f1_countparcels ///
+>     austerity_tse_ln ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,117
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3088                                         min =  
+>         1
+     Between = 0.1540                                         avg =  
+>       4.8
+     Overall = 0.1842                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     45.07
+corr(u_i, Xb) = -0.2786                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~n |   .0705538    .098963     0.71   0.477    -.1244317   
+>  .2655393
+ln_populat~n |   1.394676   1.428282     0.98   0.330    -1.419449   
+>  4.208801
+rs_ctr_rea~c |   .0180393   .3521546     0.05   0.959    -.6758061   
+>  .7118847
+             |
+        year |
+       2019  |   .2360423   .0271267     8.70   0.000      .182595   
+>  .2894897
+       2020  |   .5236937   .0456111    11.48   0.000     .4338267   
+>  .6135607
+       2021  |   .3530207   .0457471     7.72   0.000     .2628859   
+>  .4431555
+       2022  |   .7019533   .0585917    11.98   0.000     .5865109   
+>  .8173957
+             |
+       _cons |    -7.9618   17.17969    -0.46   0.643    -41.81072   
+>  25.88712
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2587791
+     sigma_e |  .41747146
+         rho |  .90090874   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store fe_main_log
+
+. 
+. *==================================================================
+> =============
+. * 13. Main text analysis: Reduced Form (Table 2, cols 3-4)
+. *==================================================================
+> =============
+. 
+. * Reduced form with Z1 only
+. xtreg asinh_f1_countparcels ///
+>     d_asinh_budgetgap ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,121
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3103                                         min =  
+>         1
+     Between = 0.1531                                         avg =  
+>       4.8
+     Overall = 0.1861                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     41.72
+corr(u_i, Xb) = -0.2819                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |  -.0035202   .0797885    -0.04   0.965    -.1607263   
+>  .1536859
+ln_populat~n |   1.429749   1.412983     1.01   0.313    -1.354232   
+>   4.21373
+rs_ctr_rea~c |  -.0979316   .2816086    -0.35   0.728    -.6527812   
+>  .4569181
+             |
+        year |
+       2019  |   .2343817   .0268796     8.72   0.000     .1814212   
+>  .2873422
+       2020  |   .5148488   .0506315    10.17   0.000     .4150903   
+>  .6146074
+       2021  |   .3553585   .0448174     7.93   0.000     .2670553   
+>  .4436616
+       2022  |   .7047469   .0580621    12.14   0.000     .5903479   
+>  .8191459
+             |
+       _cons |  -8.349933   16.99492    -0.49   0.624     -41.8348   
+>  25.13494
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2608411
+     sigma_e |  .41688318
+         rho |  .90145142   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store rf_z1
+
+. 
+. * Reduced form with all three instruments
+. xtreg asinh_f1_countparcels ///
+>     d_asinh_budgetgap ///
+>     d_reserveapr_asinh ///
+>     grantcut_asinh_flipped ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,121
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3103                                         min =  
+>         1
+     Between = 0.1535                                         avg =  
+>       4.8
+     Overall = 0.1871                                         max =  
+>         5
+
+                                                F(9, 231)         =  
+>     36.74
+corr(u_i, Xb) = -0.2679                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |  -.0111293   .0869114    -0.13   0.898    -.1823696   
+>  .1601111
+d_reservea~h |    .089904   .7136402     0.13   0.900    -1.316172   
+>   1.49598
+grantcut_a~d |  -.1050205   .4107606    -0.26   0.798    -.9143366   
+>  .7042956
+ln_populat~n |    1.37538   1.509072     0.91   0.363    -1.597924   
+>  4.348684
+rs_ctr_rea~c |   .0108432   .5786433     0.02   0.985     -1.12925   
+>  1.150936
+             |
+        year |
+       2019  |   .2325351   .0244508     9.51   0.000       .18436   
+>  .2807102
+       2020  |   .5169323   .0533185     9.70   0.000     .4118796   
+>   .621985
+       2021  |   .3576974   .0489817     7.30   0.000     .2611894   
+>  .4542054
+       2022  |   .7070757   .0628337    11.25   0.000     .5832753   
+>   .830876
+             |
+       _cons |  -7.725962   18.08909    -0.43   0.670    -43.36665   
+>  27.91472
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2575177
+     sigma_e |  .41733927
+         rho |  .90078622   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store rf_z123
+
+. 
+. *==================================================================
+> =============
+. * 14. Main text analysis: IV (Table 3)
+. *     Using ivreghdfe (Correia 2019) with absorb() for unit and yea
+> r FE.
+. *     This avoids the degenerate cluster-robust VCE that arises whe
+> n
+. *     ivreg2+partial() demeans out ~227 unit dummies with only 229 
+> clusters.
+. *     Time-invariant controls excluded (absorbed by unit FE).
+. *==================================================================
+> =============
+. 
+. * Preferred specification: Z1 only (just identified)
+. ivreghdfe asinh_f1_countparcels ///
+>     (austerity_tse = d_asinh_budgetgap) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~e | ivreg2    austerity_~e       3  First-stage
+             |                                 regression:
+             |                                 austerity_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                   1116
+Number of clusters (onscode_encode) =    227
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .1123484    .066496     1.69   0.091    -.0181238   
+>  .2428205
+ln_populat~n |  -.2497738   .2019761    -1.24   0.216    -.6460722   
+>  .1465246
+rs_ctr_rea~c |  -1.006411   .2990635    -3.37   0.001    -1.593205   
+>  -.419617
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  1,   226) =     2.85
+  Prob > F      =   0.0925
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  1,   226) =     2.85
+  Prob > F      =   0.0925
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  1,   226)  P-val | SW Chi-sq(  1) P-val | SW F(  1
+> ,   226)
+austerity_ts |       2.85    0.0925 |        2.88   0.0895 |        2
+> .85
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(1)=2.81     P-val=0.0
+> 939
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                      50
+> .15
+Kleibergen-Paap Wald rk F statistic                                 2
+> .85
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=1:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(1,226)=       0.00     P-val=0.9
+> 648
+Anderson-Rubin Wald test           Chi-sq(1)=      0.00     P-val=0.9
+> 646
+Stock-Wright LM S statistic        Chi-sq(1)=      0.00     P-val=0.9
+> 639
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        227
+Number of observations               N  =       1116
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          3
+Number of excluded instruments       L1 =          1
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    227          Number of obs =
+>      1116
+                                                      F(  3,   226) =
+>      0.35
+                                                      Prob > F      =
+>    0.7862
+Total (centered) SS     =  153.4659426                Centered R2   =
+>    0.0012
+Total (uncentered) SS   =  153.4659426                Uncentered R2 =
+>    0.0012
+Residual SS             =  153.2763242                Root MSE      =
+>     .3718
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |  -.0313328   .7100928    -0.04   0.965    -1.430582   
+>  1.367917
+ln_populat~n |   1.421923   1.429234     0.99   0.321    -1.394406   
+>  4.238252
+rs_ctr_rea~c |  -.1294652   .8528629    -0.15   0.879    -1.810045   
+>  1.551115
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     2.806
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.0939
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>    50.151
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     2.855
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     16.38
+                                         15% maximal IV size         
+>      8.96
+                                         20% maximal IV size         
+>      6.66
+                                         25% maximal IV size         
+>      5.53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.000
+                                                 (equation exactly id
+> entified)
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store iv_main_z1
+
+. 
+. * Robustness: Z1 + Z2 (overidentified — Hansen J available)
+. ivreghdfe asinh_f1_countparcels ///
+>     (austerity_tse = d_asinh_budgetgap d_reserveapr_asinh) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~e | ivreg2    austerity_~e       4  First-stage
+             |                                 regression:
+             |                                 austerity_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                   1116
+Number of clusters (onscode_encode) =    227
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .1093045   .0627591     1.74   0.082    -.0138356   
+>  .2324447
+d_reservea~h |  -.2396574   .2724478    -0.88   0.379    -.7742291   
+>  .2949144
+ln_populat~n |  -.2666043   .2098551    -1.27   0.204    -.6783626   
+>  .1451539
+rs_ctr_rea~c |  -.9851339   .2818053    -3.50   0.000    -1.538066   
+> -.4322018
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  2,   226) =     1.52
+  Prob > F      =   0.2210
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  2,   226) =     1.52
+  Prob > F      =   0.2210
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  2,   226)  P-val | SW Chi-sq(  2) P-val | SW F(  2
+> ,   226)
+austerity_ts |       1.52    0.2210 |        3.07   0.2153 |        1
+> .52
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             19
+> .93
+                                   15% maximal IV size             11
+> .59
+                                   20% maximal IV size              8
+> .75
+                                   25% maximal IV size              7
+> .25
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(2)=3.51     P-val=0.1
+> 729
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                      27
+> .75
+Kleibergen-Paap Wald rk F statistic                                 1
+> .52
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=2:
+                                   10% maximal IV size             19
+> .93
+                                   15% maximal IV size             11
+> .59
+                                   20% maximal IV size              8
+> .75
+                                   25% maximal IV size              7
+> .25
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(2,226)=       0.01     P-val=0.9
+> 923
+Anderson-Rubin Wald test           Chi-sq(2)=      0.02     P-val=0.9
+> 923
+Stock-Wright LM S statistic        Chi-sq(2)=      0.02     P-val=0.9
+> 923
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        227
+Number of observations               N  =       1116
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          4
+Number of excluded instruments       L1 =          2
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    227          Number of obs =
+>      1116
+                                                      F(  3,   226) =
+>      0.36
+                                                      Prob > F      =
+>    0.7842
+Total (centered) SS     =  153.4659426                Centered R2   =
+>    0.0012
+Total (uncentered) SS   =  153.4659426                Uncentered R2 =
+>    0.0012
+Residual SS             =  153.2760947                Root MSE      =
+>     .3718
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |  -.0562363    .639473    -0.09   0.930    -1.316328   
+>  1.203856
+ln_populat~n |   1.417879   1.426185     0.99   0.321    -1.392443   
+>  4.228201
+rs_ctr_rea~c |   -.156324   .7744489    -0.20   0.840    -1.682388   
+>   1.36974
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     3.510
+                                                   Chi-sq(2) P-val = 
+>                                                                    
+>    0.1729
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>    27.745
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     1.520
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     19.93
+                                         15% maximal IV size         
+>     11.59
+                                         20% maximal IV size         
+>      8.75
+                                         25% maximal IV size         
+>      7.25
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.007
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.9318
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap d_reserveapr_asinh
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store iv_main_z12
+
+. 
+. * Robustness: Z1 + Z2 + Z3 (overidentified — Hansen J available)
+. ivreghdfe asinh_f1_countparcels ///
+>     (austerity_tse = d_asinh_budgetgap d_reserveapr_asinh grantcut_
+> asinh_flipped) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~e | ivreg2    austerity_~e       5  First-stage
+             |                                 regression:
+             |                                 austerity_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                   1116
+Number of clusters (onscode_encode) =    227
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .0703017   .0416258     1.69   0.092    -.0113727   
+>  .1519762
+d_reservea~h |  -.1567478    .206559    -0.76   0.448    -.5620391   
+>  .2485436
+grantcut_a~d |  -.4807124   .2144144    -2.24   0.025    -.9014169   
+> -.0600078
+ln_populat~n |  -.5385472   .2846652    -1.89   0.059    -1.097092   
+>  .0199971
+rs_ctr_rea~c |  -.4580629   .2231249    -2.05   0.040    -.8958584   
+> -.0202674
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  3,   226) =     2.19
+  Prob > F      =   0.0901
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  3,   226) =     2.19
+  Prob > F      =   0.0901
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  3,   226)  P-val | SW Chi-sq(  3) P-val | SW F(  3
+> ,   226)
+austerity_ts |       2.19    0.0901 |        6.64   0.0842 |        2
+> .19
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                    5% maximal IV relative bias    13
+> .91
+                                   10% maximal IV relative bias     9
+> .08
+                                   20% maximal IV relative bias     6
+> .46
+                                   30% maximal IV relative bias     5
+> .39
+                                   10% maximal IV size             22
+> .30
+                                   15% maximal IV size             12
+> .83
+                                   20% maximal IV size              9
+> .54
+                                   25% maximal IV size              7
+> .80
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(3)=3.53     P-val=0.3
+> 164
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                      41
+> .07
+Kleibergen-Paap Wald rk F statistic                                 2
+> .19
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=3:
+                                    5% maximal IV relative bias    13
+> .91
+                                   10% maximal IV relative bias     9
+> .08
+                                   20% maximal IV relative bias     6
+> .46
+                                   30% maximal IV relative bias     5
+> .39
+                                   10% maximal IV size             22
+> .30
+                                   15% maximal IV size             12
+> .83
+                                   20% maximal IV size              9
+> .54
+                                   25% maximal IV size              7
+> .80
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(3,226)=       0.02     P-val=0.9
+> 947
+Anderson-Rubin Wald test           Chi-sq(3)=      0.08     P-val=0.9
+> 946
+Stock-Wright LM S statistic        Chi-sq(3)=      0.09     P-val=0.9
+> 935
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        227
+Number of observations               N  =       1116
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          5
+Number of excluded instruments       L1 =          3
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    227          Number of obs =
+>      1116
+                                                      F(  3,   226) =
+>      0.43
+                                                      Prob > F      =
+>    0.7317
+Total (centered) SS     =  153.4659426                Centered R2   =
+>    0.0007
+Total (uncentered) SS   =  153.4659426                Uncentered R2 =
+>    0.0007
+Residual SS             =  153.3527114                Root MSE      =
+>     .3719
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |   .0876479    .538397     0.16   0.871    -.9732721   
+>  1.148568
+ln_populat~n |   1.441243   1.397076     1.03   0.303    -1.311718   
+>  4.194204
+rs_ctr_rea~c |  -.0011427   .7048486    -0.00   0.999    -1.390058   
+>  1.387773
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     3.534
+                                                   Chi-sq(3) P-val = 
+>                                                                    
+>    0.3164
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>    41.068
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     2.189
+Stock-Yogo weak ID test critical values:  5% maximal IV relative bias
+>     13.91
+                                         10% maximal IV relative bias
+>      9.08
+                                         20% maximal IV relative bias
+>      6.46
+                                         30% maximal IV relative bias
+>      5.39
+                                         10% maximal IV size         
+>     22.30
+                                         15% maximal IV size         
+>     12.83
+                                         20% maximal IV size         
+>      9.54
+                                         25% maximal IV size         
+>      7.80
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.068
+                                                   Chi-sq(2) P-val = 
+>                                                                    
+>    0.9663
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap d_reserveapr_asinh
+                      grantcut_asinh_flipped
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store iv_main_z123
+
+. 
+. * Functional form robustness: log treatment with Z1
+. ivreghdfe asinh_f1_countparcels ///
+>     (austerity_tse_ln = d_asinh_budgetgap) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 5 singleton observations)
+(MWFE estimator converged in 5 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~n | ivreg2    austerity_~n       3  First-stage
+             |                                 regression:
+             |                                 austerity_tse_ln
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse_ln:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                   1112
+Number of clusters (onscode_encode) =    227
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~n | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .1095278   .0631009     1.74   0.083    -.0142834   
+>   .233339
+ln_populat~n |   .3588797   .4330986     0.83   0.407    -.4909087   
+>  1.208668
+rs_ctr_rea~c |  -1.782579   .5228208    -3.41   0.001    -2.808412   
+> -.7567453
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  1,   226) =     3.01
+  Prob > F      =   0.0840
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  1,   226) =     3.01
+  Prob > F      =   0.0840
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  1,   226)  P-val | SW Chi-sq(  1) P-val | SW F(  1
+> ,   226)
+austerity_ts |       3.01    0.0840 |        3.04   0.0811 |        3
+> .01
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(1)=5.50     P-val=0.0
+> 190
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                       5
+> .25
+Kleibergen-Paap Wald rk F statistic                                 3
+> .01
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=1:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(1,226)=       0.01     P-val=0.9
+> 366
+Anderson-Rubin Wald test           Chi-sq(1)=      0.01     P-val=0.9
+> 362
+Stock-Wright LM S statistic        Chi-sq(1)=      0.01     P-val=0.9
+> 359
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        227
+Number of observations               N  =       1112
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          3
+Number of excluded instruments       L1 =          1
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    227          Number of obs =
+>      1112
+                                                      F(  3,   226) =
+>      0.35
+                                                      Prob > F      =
+>    0.7858
+Total (centered) SS     =  153.3731003                Centered R2   =
+>   -0.0018
+Total (uncentered) SS   =  153.3731003                Uncentered R2 =
+>   -0.0018
+Residual SS             =  153.6424768                Root MSE      =
+>     .3729
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~n |  -.0640854   .8048781    -0.08   0.937    -1.650111   
+>   1.52194
+ln_populat~n |   1.456787   1.446742     1.01   0.315    -1.394041   
+>  4.307615
+rs_ctr_rea~c |   -.225218   1.506703    -0.15   0.881    -3.194201   
+>  2.743765
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     5.503
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.0190
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>     5.254
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     3.013
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     16.38
+                                         15% maximal IV size         
+>      8.96
+                                         20% maximal IV size         
+>      6.66
+                                         25% maximal IV size         
+>      5.53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.000
+                                                 (equation exactly id
+> entified)
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse_ln
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store iv_main_log_z1
+
+. 
+. * Appendix comparison: binary cut with Z1
+. ivreghdfe asinh_f1_countparcels ///
+>     (treat_tse = d_asinh_budgetgap) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_tr~e | ivreg2    treat_tse          3  First-stage
+             |                                 regression: treat_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of treat_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                   1116
+Number of clusters (onscode_encode) =    227
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+   treat_tse | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .5557423   .1607425     3.46   0.001     .2403487   
+>   .871136
+ln_populat~n |   2.789779   1.605743     1.74   0.083    -.3608593   
+>  5.940416
+rs_ctr_rea~c |  -.3294232   .4773747    -0.69   0.490    -1.266083   
+>  .6072363
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  1,   226) =    11.95
+  Prob > F      =   0.0007
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  1,   226) =    11.95
+  Prob > F      =   0.0007
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  1,   226)  P-val | SW Chi-sq(  1) P-val | SW F(  1
+> ,   226)
+treat_tse    |      11.95    0.0007 |       12.07   0.0005 |       11
+> .95
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(1)=25.37    P-val=0.0
+> 000
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                      25
+> .66
+Kleibergen-Paap Wald rk F statistic                                11
+> .95
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=1:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(1,226)=       0.00     P-val=0.9
+> 648
+Anderson-Rubin Wald test           Chi-sq(1)=      0.00     P-val=0.9
+> 646
+Stock-Wright LM S statistic        Chi-sq(1)=      0.00     P-val=0.9
+> 639
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        227
+Number of observations               N  =       1116
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          3
+Number of excluded instruments       L1 =          1
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    227          Number of obs =
+>      1116
+                                                      F(  3,   226) =
+>      0.35
+                                                      Prob > F      =
+>    0.7864
+Total (centered) SS     =  153.4659426                Centered R2   =
+>    0.0014
+Total (uncentered) SS   =  153.4659426                Uncentered R2 =
+>    0.0014
+Residual SS             =  153.2487857                Root MSE      =
+>     .3717
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+   treat_tse |  -.0063342   .1434961    -0.04   0.965    -.2890957   
+>  .2764273
+ln_populat~n |    1.44742   1.455463     0.99   0.321    -1.420593   
+>  4.315433
+rs_ctr_rea~c |  -.1000182   .3013358    -0.33   0.740    -.6938053   
+>  .4937689
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>    25.374
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.0000
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>    25.659
+                         (Kleibergen-Paap rk Wald F statistic):      
+>    11.953
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     16.38
+                                         15% maximal IV size         
+>      8.96
+                                         20% maximal IV size         
+>      6.66
+                                         25% maximal IV size         
+>      5.53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.000
+                                                 (equation exactly id
+> entified)
+---------------------------------------------------------------------
+> ---------
+Instrumented:         treat_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store iv_binary_z1
+
+. 
+. *==================================================================
+> =============
+. * 14b. First-stage regressions (Table A4)
+. *      Explicit first-stage estimation for export.
+. *      These replicate the first stage of the preferred IV spec and
+. *      each instrument set, using reghdfe for consistency with ivre
+> ghdfe.
+. *==================================================================
+> =============
+. 
+. * First stage: Z1 only (preferred)
+. reghdfe austerity_tse ///
+>     d_asinh_budgetgap ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode)
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =  
+>     1,116
+Absorbing 2 HDFE groups                           F(   3,    226) =  
+>      4.04
+Statistics robust to heteroskedasticity           Prob > F        =  
+>    0.0079
+                                                  R-squared       =  
+>    0.4101
+                                                  Adj R-squared   =  
+>    0.2543
+                                                  Within R-sq.    =  
+>    0.2549
+Number of clusters (onscode_encode) =        227  Root MSE        =  
+>    0.0691
+
+                       (Std. err. adjusted for 227 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .1123484    .066526     1.69   0.093    -.0187422   
+>  .2434389
+ln_populat~n |  -.2497738   .2020672    -1.24   0.218    -.6479506   
+>   .148403
+rs_ctr_rea~c |  -1.006411   .2991984    -3.36   0.001    -1.595986   
+> -.4168357
+       _cons |   3.302636   2.487527     1.33   0.186    -1.599077   
+>  8.204349
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store fs_z1
+
+. 
+. * First stage: Z1 + Z2
+. reghdfe austerity_tse ///
+>     d_asinh_budgetgap ///
+>     d_reserveapr_asinh ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode)
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =  
+>     1,116
+Absorbing 2 HDFE groups                           F(   4,    226) =  
+>      3.29
+Statistics robust to heteroskedasticity           Prob > F        =  
+>    0.0120
+                                                  R-squared       =  
+>    0.4128
+                                                  Adj R-squared   =  
+>    0.2569
+                                                  Within R-sq.    =  
+>    0.2583
+Number of clusters (onscode_encode) =        227  Root MSE        =  
+>    0.0689
+
+                       (Std. err. adjusted for 227 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .1093045   .0627875     1.74   0.083    -.0144192   
+>  .2330283
+d_reservea~h |  -.2396574   .2725708    -0.88   0.380    -.7767626   
+>  .2974478
+ln_populat~n |  -.2666043   .2099499    -1.27   0.205    -.6803139   
+>  .1471053
+rs_ctr_rea~c |  -.9851339   .2819325    -3.49   0.001    -1.540687   
+> -.4295814
+       _cons |   3.499141   2.577362     1.36   0.176    -1.579592   
+>  8.577874
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store fs_z12
+
+. 
+. * First stage: Z1 + Z2 + Z3
+. reghdfe austerity_tse ///
+>     d_asinh_budgetgap ///
+>     d_reserveapr_asinh ///
+>     grantcut_asinh_flipped ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode)
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =  
+>     1,116
+Absorbing 2 HDFE groups                           F(   5,    226) =  
+>      3.81
+Statistics robust to heteroskedasticity           Prob > F        =  
+>    0.0025
+                                                  R-squared       =  
+>    0.4452
+                                                  Adj R-squared   =  
+>    0.2970
+                                                  Within R-sq.    =  
+>    0.2992
+Number of clusters (onscode_encode) =        227  Root MSE        =  
+>    0.0671
+
+                       (Std. err. adjusted for 227 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .0703017   .0416447     1.69   0.093    -.0117598   
+>  .1523632
+d_reservea~h |  -.1567478   .2066524    -0.76   0.449    -.5639596   
+>  .2504641
+grantcut_a~d |  -.4807124   .2145113    -2.24   0.026    -.9034105   
+> -.0580143
+ln_populat~n |  -.5385472   .2847939    -1.89   0.060    -1.099738   
+>  .0226438
+rs_ctr_rea~c |  -.4580629   .2232258    -2.05   0.041     -.897933   
+> -.0181929
+       _cons |   6.629548    3.41565     1.94   0.054    -.1010462   
+>  13.36014
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store fs_z123
+
+. 
+. * First stage for binary treatment
+. reghdfe treat_tse ///
+>     d_asinh_budgetgap ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode)
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =  
+>     1,116
+Absorbing 2 HDFE groups                           F(   3,    226) =  
+>      6.13
+Statistics robust to heteroskedasticity           Prob > F        =  
+>    0.0005
+                                                  R-squared       =  
+>    0.2740
+                                                  Adj R-squared   =  
+>    0.0822
+                                                  Within R-sq.    =  
+>    0.0293
+Number of clusters (onscode_encode) =        227  Root MSE        =  
+>    0.4777
+
+                       (Std. err. adjusted for 227 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+   treat_tse | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .5557423    .160815     3.46   0.001     .2388538   
+>  .8726308
+ln_populat~n |   2.789779   1.606468     1.74   0.084    -.3757925   
+>   5.95535
+rs_ctr_rea~c |  -.3294232   .4775901    -0.69   0.491    -1.270522   
+>  .6116758
+       _cons |  -33.02871   19.35446    -1.71   0.089      -71.167   
+>  5.109573
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store fs_binary_z1
+
+. 
+. *==================================================================
+> =============
+. * 15. Robustness checks (Table 4)
+. *==================================================================
+> =============
+. 
+. * Placebo: contemporaneous outcome (Y_t, not Y_{t+1})
+. ivreghdfe asinh_countparcels_t ///
+>     (austerity_tse = d_asinh_budgetgap) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 4 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~e | ivreg2    austerity_~e       3  First-stage
+             |                                 regression:
+             |                                 austerity_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                   1104
+Number of clusters (onscode_encode) =    224
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .1114265    .066566     1.67   0.094    -.0191846   
+>  .2420377
+ln_populat~n |  -.2856791   .1999341    -1.43   0.153    -.6779755   
+>  .1066173
+rs_ctr_rea~c |  -1.004917   .2985934    -3.37   0.001    -1.590796   
+>  -.419038
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  1,   223) =     2.80
+  Prob > F      =   0.0955
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  1,   223) =     2.80
+  Prob > F      =   0.0955
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  1,   223)  P-val | SW Chi-sq(  1) P-val | SW F(  1
+> ,   223)
+austerity_ts |       2.80    0.0955 |        2.83   0.0925 |        2
+> .80
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(1)=2.75     P-val=0.0
+> 972
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                      48
+> .91
+Kleibergen-Paap Wald rk F statistic                                 2
+> .80
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=1:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(1,223)=       2.43     P-val=0.1
+> 208
+Anderson-Rubin Wald test           Chi-sq(1)=      2.45     P-val=0.1
+> 175
+Stock-Wright LM S statistic        Chi-sq(1)=      3.02     P-val=0.0
+> 824
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        224
+Number of observations               N  =       1104
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          3
+Number of excluded instruments       L1 =          1
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    224          Number of obs =
+>      1104
+                                                      F(  3,   223) =
+>      0.49
+                                                      Prob > F      =
+>    0.6871
+Total (centered) SS     =  136.1659948                Centered R2   =
+>   -0.0396
+Total (uncentered) SS   =  136.1659948                Uncentered R2 =
+>   -0.0396
+Residual SS             =  141.5621158                Root MSE      =
+>     .3592
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_coun~t | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |   1.120608   .9300881     1.20   0.230    -.7122781   
+>  2.953495
+ln_populat~n |   .0958389   1.649611     0.06   0.954    -3.154982   
+>   3.34666
+rs_ctr_rea~c |   1.136754   1.061253     1.07   0.285    -.9546144   
+>  3.228123
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     2.750
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.0972
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>    48.912
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     2.802
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     16.38
+                                         15% maximal IV size         
+>      8.96
+                                         20% maximal IV size         
+>      6.66
+                                         25% maximal IV size         
+>      5.53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.000
+                                                 (equation exactly id
+> entified)
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       224         224           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store placebo_y_t
+
+. 
+. * Two-year lead (Y_{t+2})
+. ivreghdfe asinh_f2_countparcels ///
+>     (austerity_tse = d_asinh_budgetgap) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if inrange(year, 2018, 2021) ///
+>     & !missing(asinh_f2_countparcels, austerity_tse, d_asinh_budget
+> gap, ln_population), ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 4 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~e | ivreg2    austerity_~e       3  First-stage
+             |                                 regression:
+             |                                 austerity_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                    896
+Number of clusters (onscode_encode) =    227
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |    .053518   .0300673     1.78   0.075    -.0054931   
+>  .1125291
+ln_populat~n |  -.0679114   .2310496    -0.29   0.769     -.521377   
+>  .3855543
+rs_ctr_rea~c |  -1.272437   .4235475    -3.00   0.003    -2.103706   
+> -.4411689
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  1,   226) =     3.17
+  Prob > F      =   0.0764
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  1,   226) =     3.17
+  Prob > F      =   0.0764
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  1,   226)  P-val | SW Chi-sq(  1) P-val | SW F(  1
+> ,   226)
+austerity_ts |       3.17    0.0764 |        3.20   0.0736 |        3
+> .17
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(1)=4.03     P-val=0.0
+> 447
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                      11
+> .20
+Kleibergen-Paap Wald rk F statistic                                 3
+> .17
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=1:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(1,226)=       0.35     P-val=0.5
+> 538
+Anderson-Rubin Wald test           Chi-sq(1)=      0.36     P-val=0.5
+> 512
+Stock-Wright LM S statistic        Chi-sq(1)=      0.36     P-val=0.5
+> 512
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        227
+Number of observations               N  =        896
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          3
+Number of excluded instruments       L1 =          1
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    227          Number of obs =
+>       896
+                                                      F(  3,   226) =
+>      1.06
+                                                      Prob > F      =
+>    0.3689
+Total (centered) SS     =  105.3774064                Centered R2   =
+>   -0.0156
+Total (uncentered) SS   =  105.3774064                Uncentered R2 =
+>   -0.0156
+Residual SS             =  107.0259959                Root MSE      =
+>     .3468
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f2_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |  -.9153043   1.568471    -0.58   0.560    -4.006002   
+>  2.175393
+ln_populat~n |   2.690592   1.640112     1.64   0.102    -.5412759   
+>   5.92246
+rs_ctr_rea~c |  -1.318132   2.036318    -0.65   0.518    -5.330729   
+>  2.694465
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     4.030
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.0447
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>    11.203
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     3.168
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     16.38
+                                         15% maximal IV size         
+>      8.96
+                                         20% maximal IV size         
+>      6.66
+                                         25% maximal IV size         
+>      5.53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.000
+                                                 (equation exactly id
+> entified)
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         4           1           3     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store lead2_y
+
+. 
+. * Excluding COVID years (2020-2021)
+. ivreghdfe asinh_f1_countparcels ///
+>     (austerity_tse = d_asinh_budgetgap) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_no_covid == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 11 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~e | ivreg2    austerity_~e       3  First-stage
+             |                                 regression:
+             |                                 austerity_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                    661
+Number of clusters (onscode_encode) =    221
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .2643664   .1579508     1.67   0.095    -.0457836   
+>  .5745164
+ln_populat~n |  -.5527205   .3015935    -1.83   0.067    -1.144926   
+>  .0394846
+rs_ctr_rea~c |  -.5793407   .2595008    -2.23   0.026    -1.088893   
+> -.0697883
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  1,   220) =     2.80
+  Prob > F      =   0.0956
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  1,   220) =     2.80
+  Prob > F      =   0.0956
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  1,   220)  P-val | SW Chi-sq(  1) P-val | SW F(  1
+> ,   220)
+austerity_ts |       2.80    0.0956 |        2.83   0.0924 |        2
+> .80
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(1)=2.13     P-val=0.1
+> 440
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                     116
+> .54
+Kleibergen-Paap Wald rk F statistic                                 2
+> .80
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=1:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(1,220)=       0.18     P-val=0.6
+> 738
+Anderson-Rubin Wald test           Chi-sq(1)=      0.18     P-val=0.6
+> 717
+Stock-Wright LM S statistic        Chi-sq(1)=      0.21     P-val=0.6
+> 504
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        221
+Number of observations               N  =        661
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          3
+Number of excluded instruments       L1 =          1
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    221          Number of obs =
+>       661
+                                                      F(  3,   220) =
+>      0.35
+                                                      Prob > F      =
+>    0.7894
+Total (centered) SS     =  74.90605222                Centered R2   =
+>    0.0017
+Total (uncentered) SS   =  74.90605222                Uncentered R2 =
+>    0.0017
+Residual SS             =  74.77674051                Root MSE      =
+>     .3376
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |  -.2308256   .5653913    -0.41   0.683    -1.345102   
+>  .8834507
+ln_populat~n |   1.173072   1.425756     0.82   0.412    -1.636817   
+>   3.98296
+rs_ctr_rea~c |  -.3543106   .6134819    -0.58   0.564    -1.563364   
+>  .8547429
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     2.135
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.1440
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>   116.537
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     2.801
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     16.38
+                                         15% maximal IV size         
+>      8.96
+                                         20% maximal IV size         
+>      6.66
+                                         25% maximal IV size         
+>      5.53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.000
+                                                 (equation exactly id
+> entified)
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       221         221           0    *|
+           year |         3           1           2     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store nocovid_iv
+
+. 
+. * ln(1+Y) outcome transformation
+. ivreghdfe ln1_f1_countparcels ///
+>     (austerity_tse = d_asinh_budgetgap) ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     if sample_main == 1, ///
+>     absorb(onscode_encode year) cluster(onscode_encode) first savef
+> irst
+(dropped 5 singleton observations)
+(MWFE estimator converged in 4 iterations)
+
+Stored estimation results
+-------------------------
+---------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-------------------------------------------------------
+_ivreg2_au~e | ivreg2    austerity_~e       3  First-stage
+             |                                 regression:
+             |                                 austerity_tse
+---------------------------------------------------------------------
+
+First-stage regressions
+-----------------------
+
+
+First-stage regression of austerity_tse:
+
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+Number of obs =                   1116
+Number of clusters (onscode_encode) =    227
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+austerity_~e | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_asinh_bu~p |   .1123484    .066496     1.69   0.091    -.0181238   
+>  .2428205
+ln_populat~n |  -.2497738   .2019761    -1.24   0.216    -.6460722   
+>  .1465246
+rs_ctr_rea~c |  -1.006411   .2990635    -3.37   0.001    -1.593205   
+>  -.419617
+---------------------------------------------------------------------
+> ---------
+F test of excluded instruments:
+  F(  1,   226) =     2.85
+  Prob > F      =   0.0925
+Sanderson-Windmeijer multivariate F test of excluded instruments:
+  F(  1,   226) =     2.85
+  Prob > F      =   0.0925
+
+
+
+Summary results for first-stage regressions
+-------------------------------------------
+
+                                           (Underid)            (Weak
+>  id)
+Variable     | F(  1,   226)  P-val | SW Chi-sq(  1) P-val | SW F(  1
+> ,   226)
+austerity_ts |       2.85    0.0925 |        2.88   0.0895 |        2
+> .85
+
+NB: first-stage test statistics cluster-robust
+
+Stock-Yogo weak ID F test critical values for single endogenous regre
+> ssor:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for i.i.d. errors only.
+
+Underidentification test
+Ho: matrix of reduced form coefficients has rank=K1-1 (underidentifie
+> d)
+Ha: matrix has rank=K1 (identified)
+Kleibergen-Paap rk LM statistic          Chi-sq(1)=2.81     P-val=0.0
+> 939
+
+Weak identification test
+Ho: equation is weakly identified
+Cragg-Donald Wald F statistic                                      50
+> .15
+Kleibergen-Paap Wald rk F statistic                                 2
+> .85
+
+Stock-Yogo weak ID test critical values for K1=1 and L1=1:
+                                   10% maximal IV size             16
+> .38
+                                   15% maximal IV size              8
+> .96
+                                   20% maximal IV size              6
+> .66
+                                   25% maximal IV size              5
+> .53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+
+Weak-instrument-robust inference
+Tests of joint significance of endogenous regressors B1 in main equat
+> ion
+Ho: B1=0 and orthogonality conditions are valid
+Anderson-Rubin Wald test           F(1,226)=       0.00     P-val=0.9
+> 725
+Anderson-Rubin Wald test           Chi-sq(1)=      0.00     P-val=0.9
+> 723
+Stock-Wright LM S statistic        Chi-sq(1)=      0.00     P-val=0.9
+> 718
+
+NB: Underidentification, weak identification and weak-identification-
+> robust
+    test statistics cluster-robust
+
+Number of clusters             N_clust  =        227
+Number of observations               N  =       1116
+Number of regressors                 K  =          3
+Number of endogenous regressors      K1 =          1
+Number of instruments                L  =          3
+Number of excluded instruments       L1 =          1
+
+IV (2SLS) estimation
+--------------------
+
+Estimates efficient for homoskedasticity only
+Statistics robust to heteroskedasticity and clustering on onscode_enc
+> ode
+
+Number of clusters (onscode_encode) =    227          Number of obs =
+>      1116
+                                                      F(  3,   226) =
+>      0.38
+                                                      Prob > F      =
+>    0.7668
+Total (centered) SS     =  148.4379955                Centered R2   =
+>    0.0013
+Total (uncentered) SS   =  148.4379955                Uncentered R2 =
+>    0.0013
+Residual SS             =  148.2393847                Root MSE      =
+>     .3656
+
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+ln1_f1_cou~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+austerity_~e |  -.0244721   .7090916    -0.03   0.972    -1.421749   
+>  1.372804
+ln_populat~n |   1.461678   1.411823     1.04   0.302    -1.320343   
+>  4.243699
+rs_ctr_rea~c |  -.1231884   .8520894    -0.14   0.885    -1.802244   
+>  1.555868
+---------------------------------------------------------------------
+> ---------
+Underidentification test (Kleibergen-Paap rk LM statistic):          
+>     2.806
+                                                   Chi-sq(1) P-val = 
+>                                                                    
+>    0.0939
+---------------------------------------------------------------------
+> ---------
+Weak identification test (Cragg-Donald Wald F statistic):            
+>    50.151
+                         (Kleibergen-Paap rk Wald F statistic):      
+>     2.855
+Stock-Yogo weak ID test critical values: 10% maximal IV size         
+>     16.38
+                                         15% maximal IV size         
+>      8.96
+                                         20% maximal IV size         
+>      6.66
+                                         25% maximal IV size         
+>      5.53
+Source: Stock-Yogo (2005).  Reproduced by permission.
+NB: Critical values are for Cragg-Donald F statistic and i.i.d. error
+> s.
+---------------------------------------------------------------------
+> ---------
+Hansen J statistic (overidentification test of all instruments):     
+>     0.000
+                                                 (equation exactly id
+> entified)
+---------------------------------------------------------------------
+> ---------
+Instrumented:         austerity_tse
+Included instruments: ln_population rs_ctr_real_pc
+Excluded instruments: d_asinh_budgetgap
+Partialled-out:       _cons
+                      nb: total SS, model F and R2s are after partial
+> ling-out;
+                          any small-sample adjustments include partia
+> lled-out
+                          variables in regressor count K
+---------------------------------------------------------------------
+> ---------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+ onscode_encode |       227         227           0    *|
+           year |         5           1           4     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computatio
+> n
+
+. estimates store ln1_outcome_iv
+
+. 
+. *==================================================================
+> =============
+. * 16. Appendix: Service-level FE (Table A3)
+. *     NOTE: Time-invariant long-run service controls and imd2019_sc
+> ore
+. *     are excluded (collinear with unit FE).
+. *==================================================================
+> =============
+. 
+. xtreg asinh_f1_countparcels ///
+>     d_share_education ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,117
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3081                                         min =  
+>         1
+     Between = 0.1526                                         avg =  
+>       4.8
+     Overall = 0.1833                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     39.36
+corr(u_i, Xb) = -0.2793                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_share_ed~n |  -.1124018   .3629168    -0.31   0.757     -.827452   
+>  .6026484
+ln_populat~n |   1.419149   1.437452     0.99   0.325    -1.413043   
+>  4.251341
+rs_ctr_rea~c |   -.079105   .3141304    -0.25   0.801     -.698032   
+>  .5398221
+             |
+        year |
+       2019  |   .2342996   .0268981     8.71   0.000     .1813027   
+>  .2872965
+       2020  |   .5140444   .0493296    10.42   0.000     .4168508   
+>  .6112379
+       2021  |   .3561003   .0453506     7.85   0.000     .2667466   
+>   .445454
+       2022  |   .7050409    .058026    12.15   0.000     .5907131   
+>  .8193687
+             |
+       _cons |  -8.228927   17.28166    -0.48   0.634    -42.27874   
+>  25.82089
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2601005
+     sigma_e |  .41769656
+         rho |  .90099979   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store fe_educ
+
+. 
+. xtreg asinh_f1_countparcels ///
+>     d_share_childsc ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,117
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3081                                         min =  
+>         1
+     Between = 0.1526                                         avg =  
+>       4.8
+     Overall = 0.1831                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     39.45
+corr(u_i, Xb) = -0.2809                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_share_ch~c |  -.3719869   .9089506    -0.41   0.683     -2.16288   
+>  1.418906
+ln_populat~n |   1.420957   1.430979     0.99   0.322    -1.398482   
+>  4.240397
+rs_ctr_rea~c |  -.0676944   .3133405    -0.22   0.829     -.685065   
+>  .5496762
+             |
+        year |
+       2019  |    .234129   .0268212     8.73   0.000     .1812835   
+>  .2869745
+       2020  |   .5130345   .0499747    10.27   0.000       .41457   
+>  .6114989
+       2021  |   .3552943   .0450597     7.88   0.000     .2665138   
+>  .4440748
+       2022  |   .7053698   .0581298    12.13   0.000     .5908374   
+>  .8199021
+             |
+       _cons |  -8.252431   17.20605    -0.48   0.632    -42.15328   
+>  25.64842
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2604645
+     sigma_e |  .41768303
+         rho |  .90105708   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store fe_childsc
+
+. 
+. xtreg asinh_f1_countparcels ///
+>     d_share_adultsc ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,117
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3081                                         min =  
+>         1
+     Between = 0.1518                                         avg =  
+>       4.8
+     Overall = 0.1830                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     39.33
+corr(u_i, Xb) = -0.2648                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_share_ad~c |   .1938177   .3362472     0.58   0.565    -.4686856   
+>  .8563211
+ln_populat~n |   1.404001   1.425615     0.98   0.326    -1.404869   
+>  4.212872
+rs_ctr_rea~c |  -.1467023   .3041681    -0.48   0.630    -.7460007   
+>  .4525961
+             |
+        year |
+       2019  |   .2347616   .0270038     8.69   0.000     .1815563   
+>  .2879668
+       2020  |   .5164999   .0495805    10.42   0.000     .4188121   
+>  .6141877
+       2021  |   .3575339   .0450799     7.93   0.000     .2687136   
+>  .4463541
+       2022  |   .7061929   .0577769    12.22   0.000     .5923558   
+>    .82003
+             |
+       _cons |  -8.027978   17.14338    -0.47   0.640    -41.80535   
+>  25.74939
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2576497
+     sigma_e |  .41768621
+         rho |  .90065638   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store fe_adultsc
+
+. 
+. xtreg asinh_f1_countparcels ///
+>     d_share_health ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,117
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3081                                         min =  
+>         1
+     Between = 0.1524                                         avg =  
+>       4.8
+     Overall = 0.1829                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     40.60
+corr(u_i, Xb) = -0.2815                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_share_he~h |  -.1084446   .4277416    -0.25   0.800    -.9512182   
+>   .734329
+ln_populat~n |   1.430482   1.428189     1.00   0.318     -1.38346   
+>  4.244424
+rs_ctr_rea~c |  -.1057546   .3049298    -0.35   0.729    -.7065537   
+>  .4950446
+             |
+        year |
+       2019  |   .2345812   .0270214     8.68   0.000     .1813413   
+>  .2878211
+       2020  |   .5158966   .0501018    10.30   0.000     .4171817   
+>  .6146115
+       2021  |   .3561311   .0452356     7.87   0.000     .2670039   
+>  .4452583
+       2022  |    .704299   .0574715    12.25   0.000     .5910636   
+>  .8175345
+             |
+       _cons |  -8.357643   17.17617    -0.49   0.627    -42.19962   
+>  25.48433
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |   1.260786
+     sigma_e |  .41769881
+         rho |   .9010958   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store fe_health
+
+. 
+. xtreg asinh_f1_countparcels ///
+>     d_share_housing ///
+>     ln_population ///
+>     c.rs_ctr_real_pc ///
+>     i.year ///
+>     if sample_main == 1, fe vce(cluster onscode_encode)
+
+Fixed-effects (within) regression               Number of obs     =  
+>     1,117
+Group variable: onscode_en~e                    Number of groups  =  
+>       232
+
+R-squared:                                      Obs per group:
+     Within  = 0.3092                                         min =  
+>         1
+     Between = 0.1518                                         avg =  
+>       4.8
+     Overall = 0.1843                                         max =  
+>         5
+
+                                                F(7, 231)         =  
+>     39.53
+corr(u_i, Xb) = -0.2387                         Prob > F          =  
+>    0.0000
+
+                       (Std. err. adjusted for 232 clusters in onscod
+> e_encode)
+---------------------------------------------------------------------
+> ---------
+             |               Robust
+asinh_f1_c~s | Coefficient  std. err.      t    P>|t|     [95% conf. 
+> interval]
+-------------+-------------------------------------------------------
+> ---------
+d_share_ho~g |   .3814731   .7227137     0.53   0.598     -1.04248   
+>  1.805426
+ln_populat~n |   1.332214   1.413838     0.94   0.347    -1.453453   
+>   4.11788
+rs_ctr_rea~c |  -.0694172   .3095862    -0.22   0.823    -.6793908   
+>  .5405564
+             |
+        year |
+       2019  |   .2319349    .027647     8.39   0.000     .1774624   
+>  .2864073
+       2020  |   .5171621   .0482325    10.72   0.000     .4221302   
+>   .612194
+       2021  |   .3516551    .046301     7.59   0.000     .2604289   
+>  .4428812
+       2022  |   .7041779   .0582432    12.09   0.000     .5894221   
+>  .8189337
+             |
+       _cons |  -7.183629   17.00623    -0.42   0.673    -40.69078   
+>  26.32352
+-------------+-------------------------------------------------------
+> ---------
+     sigma_u |  1.2526657
+     sigma_e |  .41736441
+         rho |  .90008226   (fraction of variance due to u_i)
+---------------------------------------------------------------------
+> ---------
+
+. estimates store fe_housing
+
+. 
+. *==================================================================
+> =============
+. * 17. Balance table (Table A1)
+. *     Using estpost ttest to produce mean differences and t-statist
+> ics.
+. *==================================================================
+> =============
+. 
+. * Panel A: Separate group means (for display)
+. estpost summarize ///
+>     ln_population imd2019_score rs_ctr_real_pc ///
+>     d_asinhTSE_2010_2018 d_asinh_budgetgap d_reserveapr_asinh ///
+>     grantcut_asinh_flipped ///
+>     if sample_main == 1 & treat_tse == 1, detail
+
+             |  e(count)   e(sum_w)    e(mean)     e(Var)      e(sd) 
+-------------+-------------------------------------------------------
+ln_populat~n |       517        517   12.03277   .3000296   .5477496 
+imd2019_sc~e |       511        511   19.84664   69.08591   8.311794 
+rs_ctr_rea~c |       517        517   .2805428   .0490307   .2214288 
+d_asinh~2018 |       517        517  -.1696776   .0184123   .1356918 
+d_asinh_bu~p |       517        517  -.0216691   .0194003   .1392848 
+d_reservea~h |       517        517   -.000891   .0006976   .0264117 
+grantcut_a~d |       517        517   .0074488   .0055737   .0746572 
+
+             | e(skewn~)  e(kurto~)     e(sum)     e(min)     e(max) 
+-------------+-------------------------------------------------------
+ln_populat~n |  .4676932   3.017533   6220.942   10.59796   13.95894 
+imd2019_sc~e |  .5669414   2.501946   10141.63      5.544     43.006 
+rs_ctr_rea~c |  .5458652   1.787289   145.0406          0   .8091119 
+d_asinh~2018 | -.7421868   2.386731  -87.72333  -.6280767   .0097702 
+d_asinh_bu~p | -2.022953   63.48937  -11.20293  -1.302723    1.44913 
+d_reservea~h |  .3212581   16.58717  -.4606428  -.1798138   .1891224 
+grantcut_a~d | -1.654428   71.56062   3.851038   -.943293   .6570764 
+
+             |     e(p1)      e(p5)     e(p10)     e(p25)     e(p50) 
+-------------+-------------------------------------------------------
+ln_populat~n |  10.96324   11.28793   11.38653   11.61667   11.93396 
+imd2019_sc~e |     7.494      8.496     10.449     13.004     18.052 
+rs_ctr_rea~c |   .053982   .0682724   .0748364   .0912322    .122757 
+d_asinh~2018 | -.5188963  -.4153411  -.3700618    -.28669  -.1025891 
+d_asinh_bu~p | -.2995806  -.1694724  -.1120882  -.0294186          0 
+d_reservea~h | -.0830939  -.0431808  -.0207006  -.0041832          0 
+grantcut_a~d |    -.1466  -.0460988   -.018775  -.0038147          0 
+
+             |    e(p75)     e(p90)     e(p95)     e(p99) 
+-------------+--------------------------------------------
+ln_populat~n |   12.4679   12.75044    12.9704   13.26305 
+imd2019_sc~e |    25.811     31.518     34.666     40.564 
+rs_ctr_rea~c |  .4699657   .5845149   .6835539   .7732362 
+d_asinh~2018 | -.0590457   -.036755  -.0242984   .0047762 
+d_asinh_bu~p |  .0039653   .0323286   .0712901   .2479264 
+d_reservea~h |  .0013378    .017889   .0440452   .0766073 
+grantcut_a~d |  .0124125   .0519232   .0991773   .1799333 
+
+. estimates store bal_treated
+
+. 
+. estpost summarize ///
+>     ln_population imd2019_score rs_ctr_real_pc ///
+>     d_asinhTSE_2010_2018 d_asinh_budgetgap d_reserveapr_asinh ///
+>     grantcut_asinh_flipped ///
+>     if sample_main == 1 & treat_tse == 0, detail
+
+             |  e(count)   e(sum_w)    e(mean)     e(Var)      e(sd) 
+-------------+-------------------------------------------------------
+ln_populat~n |       604        604   12.05743   .3162433   .5623551 
+imd2019_sc~e |       595        595   19.81997   64.88377   8.055046 
+rs_ctr_rea~c |       604        604    .297988   .0531831   .2306146 
+d_asinh~2018 |       604        604  -.1760315   .0199329   .1411838 
+d_asinh_bu~p |       604        604  -.0717078   .0272092   .1649522 
+d_reservea~h |       604        604   .0013675   .0007375   .0271576 
+grantcut_a~d |       604        604   .0284291   .0054068   .0735313 
+
+             | e(skewn~)  e(kurto~)     e(sum)     e(min)     e(max) 
+-------------+-------------------------------------------------------
+ln_populat~n |  .3989984   2.755628   7282.688   10.61234   13.95413 
+imd2019_sc~e |  .5938431   2.744269   11792.88      5.544     43.006 
+rs_ctr_rea~c |  .4618709   1.699764   179.9848   .0534359   .8331954 
+d_asinh~2018 | -.8500429   2.828135  -106.3231  -.6280767   .0097702 
+d_asinh_bu~p |  -5.11437   41.86805   -43.3115  -1.660093   .5581795 
+d_reservea~h |  .5982995   12.27591     .82595  -.1273666   .1743914 
+grantcut_a~d |  4.388166   35.55541    17.1712  -.2919617   .7170797 
+
+             |     e(p1)      e(p5)     e(p10)     e(p25)     e(p50) 
+-------------+-------------------------------------------------------
+ln_populat~n |  10.96594   11.29831   11.42004   11.60675   11.94854 
+imd2019_sc~e |     7.494      8.833     10.284     13.447     18.645 
+rs_ctr_rea~c |  .0585879   .0698526   .0759526   .0936532   .1237579 
+d_asinh~2018 | -.5623559  -.4288724  -.3813038  -.2779523  -.1065372 
+d_asinh_bu~p | -.7081789  -.2387969  -.1722656  -.0974718  -.0300524 
+d_reservea~h | -.0839266  -.0327533  -.0150487  -.0045537  -.0002566 
+grantcut_a~d | -.0716335   -.018506  -.0096039   -.002757    .002692 
+
+             |    e(p75)     e(p90)     e(p95)     e(p99) 
+-------------+--------------------------------------------
+ln_populat~n |  12.53171   12.77138   12.96385   13.24466 
+imd2019_sc~e |    25.558     31.509     34.415     42.412 
+rs_ctr_rea~c |   .495509   .6120658   .6918472   .7917575 
+d_asinh~2018 | -.0605714   -.036755   -.023067  -.0087756 
+d_asinh_bu~p |         0   .0044724   .0257105   .1632909 
+d_reservea~h |  .0059349   .0258714   .0434483   .0986815 
+grantcut_a~d |  .0418657   .1049627   .1381977   .2614325 
+
+. estimates store bal_control
+
+. 
+. * Panel B: Formal two-sample t-tests
+. estpost ttest ///
+>     ln_population imd2019_score rs_ctr_real_pc ///
+>     d_asinhTSE_2010_2018 d_asinh_budgetgap d_reserveapr_asinh ///
+>     grantcut_asinh_flipped ///
+>     if sample_main == 1, by(treat_tse)
+
+             |      e(b)   e(count)      e(se)       e(t)    e(df_t) 
+-------------+-------------------------------------------------------
+ln_populat~n |    .02466       1121   .0332931    .740694       1119 
+imd2019_sc~e | -.0266696       1106   .4930353  -.0540927       1104 
+rs_ctr_rea~c |  .0174452       1121   .0135664   1.285915       1119 
+d_asinh~2018 | -.0063539       1121    .008309  -.7647052       1119 
+d_asinh_bu~p | -.0500387       1121    .009206  -5.435434       1119 
+d_reservea~h |  .0022585       1121   .0016067   1.405643       1119 
+grantcut_a~d |  .0209803       1121   .0044369   4.728604       1119 
+
+             |    e(p_l)       e(p)     e(p_u)     e(N_1)    e(mu_1) 
+-------------+-------------------------------------------------------
+ln_populat~n |  .7704828   .4590344   .2295172        604   12.05743 
+imd2019_sc~e |  .4784355   .9568711   .5215645        595   19.81997 
+rs_ctr_rea~c |  .9006307   .1987386   .0993693        604    .297988 
+d_asinh~2018 |  .2223042   .4446084   .7776958        604  -.1760315 
+d_asinh_bu~p |  3.35e-08   6.71e-08          1        604  -.0717078 
+d_reservea~h |  .9199461   .1601077   .0800539        604   .0013675 
+grantcut_a~d |  .9999987   2.55e-06   1.27e-06        604   .0284291 
+
+             |    e(N_2)    e(mu_2) 
+-------------+----------------------
+ln_populat~n |       517   12.03277 
+imd2019_sc~e |       511   19.84664 
+rs_ctr_rea~c |       517   .2805428 
+d_asinh~2018 |       517  -.1696776 
+d_asinh_bu~p |       517  -.0216691 
+d_reservea~h |       517   -.000891 
+grantcut_a~d |       517   .0074488 
+
+. estimates store bal_ttest
+
+. 
+. * Export balance table with group means and t-test
+. esttab bal_treated bal_control bal_ttest ///
+>     using "$tables/tableA1_balance.tex", ///
+>     replace booktabs label ///
+>     cells("mean(pattern(1 1 0) fmt(3)) sd(pattern(1 1 0) fmt(3)) b(
+> pattern(0 0 1) fmt(3)) t(pattern(0 0 1) fmt(2))") ///
+>     mtitles("Cut" "No cut" "Difference") ///
+>     title("Balance Table by Total Spending Cut Status") ///
+>     addnotes( ///
+>         "Cut: LADs with $\Delta\text{asinh}(\text{TSE}_{pc}) < 0$ i
+> n a given year." ///
+>         "Difference column reports mean(Cut) $-$ mean(No cut) with 
+> t-statistics." ///
+>         "Standard errors not adjusted for clustering." ///
+>     )
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> leA1_balance.tex)
+
+. 
+. *==================================================================
+> =============
+. * 18. Export tables
+. *==================================================================
+> =============
+. 
+. * --- Table 2: FE and Reduced Form ---
+. esttab fe_main_asinh fe_main_log rf_z1 rf_z123 ///
+>     using "$tables/table2_fe_reducedform_main.tex", ///
+>     replace booktabs label se star(* 0.10 ** 0.05 *** 0.01) ///
+>     keep(austerity_tse austerity_tse_ln d_asinh_budgetgap d_reserve
+> apr_asinh grantcut_asinh_flipped) ///
+>     order(austerity_tse austerity_tse_ln d_asinh_budgetgap d_reserv
+> eapr_asinh grantcut_asinh_flipped) ///
+>     stats(N r2_w, fmt(0 3) labels("Observations" "Within R-squared"
+> )) ///
+>     mtitles("FE (asinh)" "FE (log)" "RF: Z1" "RF: Z1+Z2+Z3") ///
+>     title("Fixed Effects and Reduced Form Estimates") ///
+>     addnotes( ///
+>         "Dependent variable: asinh(food parcels in $t+1$)." ///
+>         "Sample: English LADs, 2018--2022." ///
+>         "All specifications include LAD and year fixed effects." //
+> /
+>         "Standard errors clustered at the LAD level in parentheses.
+> " ///
+>         "Singleton clusters (LADs observed in only one year) are dr
+> opped." ///
+>         "* p$<$0.10, ** p$<$0.05, *** p$<$0.01." ///
+>     )
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> le2_fe_reducedform_main.tex)
+
+. 
+. * --- Table 3: IV ---
+. esttab iv_main_z1 iv_main_z12 iv_main_z123 iv_main_log_z1 ///
+>     using "$tables/table3_iv_main.tex", ///
+>     replace booktabs label se star(* 0.10 ** 0.05 *** 0.01) ///
+>     keep(austerity_tse austerity_tse_ln) ///
+>     order(austerity_tse austerity_tse_ln) ///
+>     stats(N widstat jp, fmt(0 2 3) labels("Observations" "Kleiberge
+> n-Paap F" "Hansen J p-value")) ///
+>     mtitles("Z1 only" "Z1+Z2" "Z1+Z2+Z3" "Log treatment, Z1") ///
+>     title("IV Estimates for Aggregate Austerity") ///
+>     addnotes( ///
+>         "Dependent variable: asinh(food parcels in $t+1$)." ///
+>         "Estimated by 2SLS using \texttt{ivreghdfe} (Correia 2019).
+> " ///
+>         "LAD and year fixed effects absorbed via iterative demeanin
+> g." ///
+>         "Standard errors clustered at the LAD level in parentheses.
+> " ///
+>         "Z1: change in asinh budget gap since 2018." ///
+>         "Z2: change in asinh reserves since 2018." ///
+>         "Z3: grant cut since 2018 (sign-flipped)." ///
+>         "Stock-Yogo 10\% critical value: 16.38 (1 inst.), 19.93 (2 
+> inst.), 22.30 (3 inst.)." ///
+>         "* p$<$0.10, ** p$<$0.05, *** p$<$0.01." ///
+>     )
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> le3_iv_main.tex)
+
+. 
+. * --- Table 4: Robustness ---
+. esttab placebo_y_t lead2_y nocovid_iv ln1_outcome_iv ///
+>     using "$tables/table4_robustness_main.tex", ///
+>     replace booktabs label se star(* 0.10 ** 0.05 *** 0.01) ///
+>     keep(austerity_tse) ///
+>     stats(N widstat, fmt(0 2) labels("Observations" "Kleibergen-Paa
+> p F")) ///
+>     mtitles("Placebo Y_t" "Lead Y_{t+2}" "Exclude 2020-21" "ln(1+Y)
+> ") ///
+>     title("Robustness Checks") ///
+>     addnotes( ///
+>         "All specifications estimated by 2SLS with Z1 (budget gap) 
+> as instrument." ///
+>         "LAD and year fixed effects absorbed via \texttt{ivreghdfe}
+> ." ///
+>         "Standard errors clustered at the LAD level in parentheses.
+> " ///
+>         "Col 1: placebo with contemporaneous $Y_t$. Col 2: two-year
+>  lead $Y_{t+2}$." ///
+>         "Col 3: excludes 2020--2021 (COVID years). Col 4: $\ln(1 + 
+> Y_{t+1})$ outcome." ///
+>         "* p$<$0.10, ** p$<$0.05, *** p$<$0.01." ///
+>     )
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> le4_robustness_main.tex)
+
+. 
+. * --- Table A2: Binary IV comparison ---
+. esttab iv_binary_z1 using "$tables/tableA2_binary_iv.tex", ///
+>     replace booktabs label se star(* 0.10 ** 0.05 *** 0.01) ///
+>     keep(treat_tse) ///
+>     stats(N widstat, fmt(0 2) labels("Observations" "Kleibergen-Paa
+> p F")) ///
+>     title("Appendix: Binary-Cut IV Comparison") ///
+>     addnotes( ///
+>         "Dependent variable: asinh(food parcels in $t+1$)." ///
+>         "Treatment: indicator for total spending cut ($\Delta\text{
+> asinh}(\text{TSE}_{pc}) < 0$)." ///
+>         "Instrument: Z1 (change in asinh budget gap since 2018)." /
+> //
+>         "LAD and year fixed effects absorbed via \texttt{ivreghdfe}
+> ." ///
+>         "Standard errors clustered at the LAD level in parentheses.
+> " ///
+>         "* p$<$0.10, ** p$<$0.05, *** p$<$0.01." ///
+>     )
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> leA2_binary_iv.tex)
+
+. 
+. * --- Table A3: Service-level FE ---
+. esttab fe_educ fe_childsc fe_adultsc fe_health fe_housing ///
+>     using "$tables/tableA3_servicelevel_fe.tex", ///
+>     replace booktabs label se star(* 0.10 ** 0.05 *** 0.01) ///
+>     keep(d_share_education d_share_childsc d_share_adultsc d_share_
+> health d_share_housing) ///
+>     stats(N r2_w, fmt(0 3) labels("Observations" "Within R-squared"
+> )) ///
+>     mtitles("Education" "Child SC" "Adult SC" "Public Health" "Hous
+> ing") ///
+>     title("Appendix: Service-Share Changes and Next-Year Food Parce
+> ls") ///
+>     addnotes( ///
+>         "Dependent variable: asinh(food parcels in $t+1$)." ///
+>         "Treatment: year-on-year change in service share of TSE." /
+> //
+>         "All specifications include LAD and year fixed effects." //
+> /
+>         "Standard errors clustered at the LAD level in parentheses.
+> " ///
+>         "* p$<$0.10, ** p$<$0.05, *** p$<$0.01." ///
+>     )
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> leA3_servicelevel_fe.tex)
+
+. 
+. * --- Table A4: First-stage regressions ---
+. esttab fs_z1 fs_z12 fs_z123 fs_binary_z1 ///
+>     using "$tables/tableA4_firststage.tex", ///
+>     replace booktabs label se star(* 0.10 ** 0.05 *** 0.01) ///
+>     keep(d_asinh_budgetgap d_reserveapr_asinh grantcut_asinh_flippe
+> d) ///
+>     order(d_asinh_budgetgap d_reserveapr_asinh grantcut_asinh_flipp
+> ed) ///
+>     stats(N r2_a F, fmt(0 3 2) labels("Observations" "Adjusted R-sq
+> uared" "F-statistic")) ///
+>     mtitles("Continuous: Z1" "Continuous: Z1+Z2" "Continuous: Z1+Z2
+> +Z3" "Binary: Z1") ///
+>     title("Appendix: First-Stage Regressions") ///
+>     addnotes( ///
+>         "Dependent variable: austerity intensity (cols 1--3) or spe
+> nding-cut indicator (col 4)." ///
+>         "LAD and year fixed effects absorbed via \texttt{reghdfe}."
+>  ///
+>         "Standard errors clustered at the LAD level in parentheses.
+> " ///
+>         "Z1: change in asinh budget gap since 2018." ///
+>         "Z2: change in asinh reserves since 2018." ///
+>         "Z3: grant cut since 2018 (sign-flipped)." ///
+>         "* p$<$0.10, ** p$<$0.05, *** p$<$0.01." ///
+>     )
+(file
+    /Users/kk/Desktop/paper2_fb_aust/output/tables/tableA4_firststa
+    > ge.tex not found)
+(output written to /Users/kk/Desktop/paper2_fb_aust/output/tables/tab
+> leA4_firststage.tex)
+
+. 
+. *==================================================================
+> =============
+. * 19. Save analysis-ready panel
+. *==================================================================
+> =============
+. save "$proc/PANEL_2007_2023_harmonized_processed_v3_clean.dta", rep
+> lace
+file
+    /Users/kk/Desktop/paper2_fb_aust/data/processed/PANEL_2007_2023
+    > _harmonized_processed_v3_clean.dta saved
+
+. 
+. log close
+      name:  <unnamed>
+       log:  /Users/kk/Desktop/paper2_fb_aust/output/logs/log_analysi
+> s_main.log
+  log type:  text
+ closed on:  29 Mar 2026, 16:53:29
+---------------------------------------------------------------------

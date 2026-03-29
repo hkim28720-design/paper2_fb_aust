@@ -1,0 +1,26 @@
+\begin{table}[htbp]\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Summary Statistics for Main Estimation Sample}
+\begin{tabular}{l*{1}{cccccc}}
+\toprule
+                    &\multicolumn{6}{c}{(1)}                                                      \\
+                    &\multicolumn{6}{c}{}                                                         \\
+                    &       count&        mean&          sd&         min&         p50&         max\\
+\midrule
+asinh food parcels in t+1&        1121&    9.209126&    1.200921&    .8813736&    9.362203&    11.89188\\
+Aggregate austerity intensity&        1121&   -.0042952&    .0798236&   -1.097842&   -.0023302&    1.387486\\
+Aggregate austerity intensity, log version&        1117&   -.0184066&    .2028629&   -2.305428&   -.0058446&    .9956816\\
+Change in asinh budget gap since 2018 (Z1)&        1121&   -.0486302&    .1555956&   -1.660093&    -.013108&     1.44913\\
+Change in asinh reserves since 2018 (Z2)&        1121&    .0003259&    .0268279&   -.1798138&           0&    .1891224\\
+Grant cut since 2018, flipped (Z3)&        1121&    .0187531&    .0747554&    -.943293&           0&    .7170797\\
+log population      &        1121&    12.04606&    .5555559&    10.59796&    11.94106&    13.95894\\
+IMD 2019 average score&        1106&    19.83229&    8.170965&       5.544&      18.223&      43.006\\
+Council tax requirement per capita, real&        1121&    .2899424&    .2264911&           0&    .1234705&    .8331954\\
+\midrule
+Observations        &        1121&            &            &            &            &            \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize Sample: 229 English local authorities, 2018--2022.}\\
+\multicolumn{7}{l}{\footnotesize Austerity intensity: {it} = -[\text{asinh}(\text{TSE}\_{it}) - \text{asinh}(\text{TSE}\_{i,t-1})]$.}\\
+\multicolumn{7}{l}{\footnotesize Positive values indicate spending cuts.}\\
+\end{tabular}
+\end{table}

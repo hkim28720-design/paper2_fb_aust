@@ -1,0 +1,37 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*.bak
+*.tmp
+*~
+*.stswp
+
+# Stata temporary files (not logs — logs are kept for replication)
+*.smcl
+*.stjson
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.toc
+*.synctex.gz
+*.synctex(busy)
+
+# Never track local secrets or credentials
+.env
+*.key
+*.pem

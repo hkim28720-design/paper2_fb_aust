@@ -1,0 +1,31 @@
+\begin{table}[htbp]\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{IV Estimates for Aggregate Austerity}
+\begin{tabular}{l*{4}{c}}
+\toprule
+                    &\multicolumn{1}{c}{(1)}&\multicolumn{1}{c}{(2)}&\multicolumn{1}{c}{(3)}&\multicolumn{1}{c}{(4)}\\
+                    &\multicolumn{1}{c}{Z1 only}&\multicolumn{1}{c}{Z1+Z2}&\multicolumn{1}{c}{Z1+Z2+Z3}&\multicolumn{1}{c}{Log treatment, Z1}\\
+\midrule
+Aggregate austerity intensity&     -0.0313         &     -0.0562         &      0.0876         &                     \\
+                    &     (0.710)         &     (0.639)         &     (0.538)         &                     \\
+\addlinespace
+Aggregate austerity intensity, log version&                     &                     &                     &     -0.0641         \\
+                    &                     &                     &                     &     (0.805)         \\
+\midrule
+Observations        &        1116         &        1116         &        1116         &        1112         \\
+Kleibergen-Paap F   &        2.85         &        1.52         &        2.19         &        3.01         \\
+Hansen J p-value    &                     &       0.932         &       0.966         &                     \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize Standard errors in parentheses}\\
+\multicolumn{5}{l}{\footnotesize Dependent variable: asinh(food parcels in +1$).}\\
+\multicolumn{5}{l}{\footnotesize Estimated by 2SLS using \texttt{ivreghdfe} (Correia 2019).}\\
+\multicolumn{5}{l}{\footnotesize LAD and year fixed effects absorbed via iterative demeaning.}\\
+\multicolumn{5}{l}{\footnotesize Standard errors clustered at the LAD level in parentheses.}\\
+\multicolumn{5}{l}{\footnotesize Z1: change in asinh budget gap since 2018.}\\
+\multicolumn{5}{l}{\footnotesize Z2: change in asinh reserves since 2018.}\\
+\multicolumn{5}{l}{\footnotesize Z3: grant cut since 2018 (sign-flipped).}\\
+\multicolumn{5}{l}{\footnotesize Stock-Yogo 10\% critical value: 16.38 (1 inst.), 19.93 (2 inst.), 22.30 (3 inst.).}\\
+\multicolumn{5}{l}{\footnotesize * p$<$0.10, ** p$<$0.05, *** p$<$0.01.}\\
+\multicolumn{5}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}
+\end{table}

@@ -1,0 +1,438 @@
+---------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/kk/Desktop/paper2_fb_aust/data/intermediate/recli
+> nk_onscode_link.log
+  log type:  text
+ opened on:  29 Mar 2026, 16:53:25
+
+. 
+. /*------------------------------------------------------
+>    0) Dependencies: reclink installation check
+>    -------------------------------------------------------*/
+. capture which reclink
+
+. if _rc != 0 ssc install reclink
+
+. 
+. /*------------------------------------------------------
+>    1) Master dataset: electionlocal.dta (no ONS codes)
+>       - Auto-detect LA name variable (candidate approach)
+>       - Create normalized key (name_key) for fuzzy matching
+>    -------------------------------------------------------*/
+. use "$inter/electionlocal.dta", clear
+
+. 
+. /* Auto-detect LA name variable from candidates */
+. local master_name ""
+
+. capture confirm variable la_name
+
+. if _rc == 0 local master_name la_name
+
+. capture confirm variable ladname
+
+. if _rc == 0 & "`master_name'" == "" local master_name ladname
+
+. capture confirm variable lad19nm
+
+. if _rc == 0 & "`master_name'" == "" local master_name lad19nm
+
+. capture confirm variable authority_name
+
+. if _rc == 0 & "`master_name'" == "" local master_name authority_nam
+> e
+
+. 
+. if "`master_name'" == "" {
+.     di as error "electionlocal.dta missing LA name variable (la_nam
+> e/ladname/lad19nm/authority_name)"
+.     exit 198
+. }
+
+. 
+. /* Create unique row identifier and standardize names */
+. gen long id_master = _n
+
+. gen strL name_clean = lower(`master_name')
+
+. 
+. /* Remove punctuation and standardize common prefixes/suffixes */
+. replace name_clean = subinstr(name_clean, "&", " and ", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, "-", " ", .)
+(66 real changes made)
+
+. replace name_clean = ustrregexra(name_clean, "[^a-z0-9 ]", " ")
+(27 real changes made)
+
+. 
+. /* Remove common title prefixes */
+. replace name_clean = subinstr(name_clean, "london borough of ", "",
+>  .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, "royal borough of ", "", 
+> .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, "city of ", "", .)
+(10 real changes made)
+
+. replace name_clean = subinstr(name_clean, "metropolitan borough of 
+> ", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, "county of ", "", .)
+(0 real changes made)
+
+. 
+. /* Remove common title suffixes */
+. replace name_clean = subinstr(name_clean, " unitary authority", "",
+>  .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " district", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " borough", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " county", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " city", "", .)
+(30 real changes made)
+
+. replace name_clean = subinstr(name_clean, " council", "", .)
+(0 real changes made)
+
+. 
+. /* Trim whitespace */
+. replace name_clean = itrim(strtrim(name_clean))
+(17 real changes made)
+
+. 
+. /* Standardize St. abbreviations to Saint */
+. replace name_clean = "saint " + substr(name_clean, 4, .) ///
+>     if substr(name_clean, 1, 3) == "st "
+(23 real changes made)
+
+. replace name_clean = subinstr(name_clean, " st. ", " saint ", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " st ", " saint ", .)
+(0 real changes made)
+
+. 
+. /* Create fixed-width name key for stability */
+. gen str80 name_key = substr(name_clean, 1, 80)
+
+. tempfile master_clean
+
+. save `master_clean', replace
+(file
+    /var/folders/z8/2qp6hn1d543606nt07h2rw080000gn/T//S_62319.00000
+    > 1 not found)
+file
+    /var/folders/z8/2qp6hn1d543606nt07h2rw080000gn/T//S_62319.00000
+    > 1 saved as .dta format
+
+. 
+. /*------------------------------------------------------
+>    2) Using dataset: ladmapping.dta (with ONS codes)
+>       - Auto-detect ONS code and name variables
+>       - Apply identical standardization
+>    -------------------------------------------------------*/
+. use "$raw/elections/ladmapping.dta", clear
+
+. 
+. /* Auto-detect ONS code variable */
+. local codevar ""
+
+. capture confirm variable onscode
+
+. if _rc == 0 local codevar onscode
+
+. capture confirm variable lad19cd
+
+. if _rc == 0 & "`codevar'" == "" {
+.     rename lad19cd onscode
+.     local codevar onscode
+. }
+
+. if "`codevar'" == "" {
+.     di as error "ladmapping.dta missing ONS code (onscode/lad19cd)"
+.     exit 198
+. }
+
+. 
+. /* Auto-detect LA name variable */
+. local using_name ""
+
+. capture confirm variable la_name
+
+. if _rc == 0 local using_name la_name
+
+. capture confirm variable ladname
+
+. if _rc == 0 & "`using_name'" == "" local using_name ladname
+
+. capture confirm variable lad19nm
+
+. if _rc == 0 & "`using_name'" == "" local using_name lad19nm
+
+. capture confirm variable authority_name
+
+. if _rc == 0 & "`using_name'" == "" local using_name authority_name
+
+. if "`using_name'" == "" {
+.     di as error "ladmapping.dta missing LA name variable (la_name/l
+> adname/lad19nm/authority_name)"
+.     exit 198
+. }
+
+. 
+. /* Keep only ONS code and name; drop duplicates */
+. keep onscode `using_name'
+
+. duplicates drop
+
+Duplicates in terms of all variables
+
+(5,787 observations deleted)
+
+. 
+. /* Create reference dataset identifier */
+. gen long id_using = _n
+
+. gen strL name_clean = lower(`using_name')
+
+. 
+. /* Apply identical standardization */
+. replace name_clean = subinstr(name_clean, "&", " and ", .)
+(19 real changes made)
+
+. replace name_clean = subinstr(name_clean, "-", " ", .)
+(6 real changes made)
+
+. replace name_clean = ustrregexra(name_clean, "[^a-z0-9 ]", " ")
+(3 real changes made)
+
+. replace name_clean = subinstr(name_clean, "london borough of ", "",
+>  .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, "royal borough of ", "", 
+> .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, "city of ", "", .)
+(2 real changes made)
+
+. replace name_clean = subinstr(name_clean, "metropolitan borough of 
+> ", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, "county of ", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " unitary authority", "",
+>  .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " district", "", .)
+(3 real changes made)
+
+. replace name_clean = subinstr(name_clean, " borough", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " county", "", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " city", "", .)
+(4 real changes made)
+
+. replace name_clean = subinstr(name_clean, " council", "", .)
+(0 real changes made)
+
+. replace name_clean = itrim(strtrim(name_clean))
+(21 real changes made)
+
+. replace name_clean = "saint " + substr(name_clean, 4, .) ///
+>     if substr(name_clean, 1, 3) == "st "
+(3 real changes made)
+
+. replace name_clean = subinstr(name_clean, " st. ", " saint ", .)
+(0 real changes made)
+
+. replace name_clean = subinstr(name_clean, " st ", " saint ", .)
+(0 real changes made)
+
+. 
+. /* Create fixed-width key and deduplicate within key */
+. gen str80 name_key = substr(name_clean, 1, 80)
+
+. bysort name_key (onscode): keep if _n == 1
+(5 observations deleted)
+
+. 
+. tempfile using_clean
+
+. save `using_clean', replace
+(file
+    /var/folders/z8/2qp6hn1d543606nt07h2rw080000gn/T//S_62319.00000
+    > 2 not found)
+file
+    /var/folders/z8/2qp6hn1d543606nt07h2rw080000gn/T//S_62319.00000
+    > 2 saved as .dta format
+
+. 
+. /*------------------------------------------------------
+>    3) Reclink fuzzy matching (core step)
+>       - Calculate similarity scores (minimum 0.85)
+>       - Keep highest score per master record
+>       - Use m:1 merge to avoid r(459) error
+>    -------------------------------------------------------*/
+. use `master_clean', clear
+
+. 
+. reclink name_key using `using_clean', ///
+>     idmaster(id_master) idusing(id_using) ///
+>     gen(mscore) minscore(0.85)
+
+2816 perfect matches found
+
+Going through 1065 observation to assess fuzzy matches, each .=5% com
+> plete
+....................
+Added: id_using= identifier from /var/folders/z8/2qp6hn1d543606nt07h2
+> rw080000gn/T//S_62319.000002   mscore = matching score
+Observations:  Master N = 3881    /var/folders/z8/2qp6hn1d543606nt07h
+> 2rw080000gn/T//S_62319.000002 N= 386 
+  Unique Master Cases: matched = 3352 (exact = 2816), unmatched = 529
+
+. 
+. /* Sort by master ID and score, then keep best match per master */
+. gsort id_master -mscore
+
+. by id_master: gen byte best = (_n == 1)
+
+. keep if best == 1
+(10 observations deleted)
+
+. drop best
+
+. 
+. /* Merge reference data on best match using m:1 */
+. merge m:1 id_using using `using_clean', keep(match) nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                             3,352  
+    -----------------------------------------
+
+. 
+. /* Create flag for low-confidence matches requiring manual review *
+> /
+. gen byte flag_review = (mscore < 0.92)
+
+. label var flag_review "1 if mscore<0.92 (manual review suggested)"
+
+. label var mscore "reclink similarity score (0~1)"
+
+. 
+. /* Keep essential variables */
+. keep id_master onscode mscore flag_review
+
+. tempfile matches
+
+. save `matches', replace
+(file
+    /var/folders/z8/2qp6hn1d543606nt07h2rw080000gn/T//S_62319.00000
+    > 3 not found)
+file
+    /var/folders/z8/2qp6hn1d543606nt07h2rw080000gn/T//S_62319.00000
+    > 3 saved as .dta format
+
+. 
+. /*------------------------------------------------------
+>    4) Add ONS codes to original election data
+>    -------------------------------------------------------*/
+. use "$inter/electionlocal.dta", clear
+
+. gen long id_master = _n
+
+. merge 1:1 id_master using `matches', nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                           529
+        from master                       529  
+        from using                          0  
+
+    Matched                             3,352  
+    -----------------------------------------
+
+. 
+. /* Reorder and label */
+. order onscode, after(id_master)
+
+. label var onscode "ONS Local Authority code (via reclink from ladma
+> pping)"
+
+. 
+. /* Optimize storage and save */
+. compress
+  variable id_master was long now int
+  (7,762 bytes saved)
+
+. save "$inter/electionlocal_with_onscode.dta", replace
+file
+    /Users/kk/Desktop/paper2_fb_aust/data/intermediate/electionloca
+    > l_with_onscode.dta saved
+
+. 
+. /*------------------------------------------------------
+>    5) Diagnostics: review low-score matches
+>    -------------------------------------------------------*/
+. di ""
+
+
+. di "Match quality summary:"
+Match quality summary:
+
+. di "====================="
+=====================
+
+. tabulate flag_review
+
+       1 if |
+mscore<0.92 |
+    (manual |
+     review |
+ suggested) |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |      3,322       99.11       99.11
+          1 |         30        0.89      100.00
+------------+-----------------------------------
+      Total |      3,352      100.00
+
+. summarize mscore if !missing(onscode)
+
+    Variable |        Obs        Mean    Std. dev.       Min        M
+> ax
+-------------+-------------------------------------------------------
+> --
+      mscore |      3,352    .9973987     .011166   .8906478         
+>  1
+
+. 
+. log close
+      name:  <unnamed>
+       log:  /Users/kk/Desktop/paper2_fb_aust/data/intermediate/recli
+> nk_onscode_link.log
+  log type:  text
+ closed on:  29 Mar 2026, 16:53:25
+---------------------------------------------------------------------
